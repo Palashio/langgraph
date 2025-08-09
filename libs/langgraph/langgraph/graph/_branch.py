@@ -111,9 +111,19 @@ class BranchSpec(NamedTuple):
                     if (cal := getattr(path, "__call__", None)) and ismethod(cal):
                         func = cal
                     # get the return type
-                    if rtn_type := get_type_hints(func).get("return"):
-                        if get_origin(rtn_type) is Literal:
-                            path_map_ = {name: name for name in get_args(rtn_type)}
+                    # Try to get type hints from func.__call__ first (for callable class instances),
+                    # then fall back to func itself
+                    try:
+                        rtn_type = get_type_hints(getattr(func, '__call__', func)).get("return")
+                    except TypeError:
+                        # Fallback to original approach if __call__ method fails
+                        try:
+                            rtn_type = get_type_hints(func).get("return")
+                        except TypeError:
+                            rtn_type = None
+                    
+                    if rtn_type and get_origin(rtn_type) is Literal:
+                        path_map_ = {name: name for name in get_args(rtn_type)}
         except Exception:
             pass
         # infer input schema
@@ -225,3 +235,4 @@ class BranchSpec(NamedTuple):
             else:
                 ChannelWrite.do_write(config, entries)
                 return input
+
