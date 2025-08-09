@@ -114,6 +114,11 @@ class BranchSpec(NamedTuple):
                     if rtn_type := get_type_hints(func).get("return"):
                         if get_origin(rtn_type) is Literal:
                             path_map_ = {name: name for name in get_args(rtn_type)}
+                else:
+                    # handle callable class instances directly
+                    if rtn_type := get_type_hints(getattr(path, '__call__', path)).get("return"):
+                        if get_origin(rtn_type) is Literal:
+                            path_map_ = {name: name for name in get_args(rtn_type)}
         except Exception:
             pass
         # infer input schema
@@ -225,3 +230,4 @@ class BranchSpec(NamedTuple):
             else:
                 ChannelWrite.do_write(config, entries)
                 return input
+
