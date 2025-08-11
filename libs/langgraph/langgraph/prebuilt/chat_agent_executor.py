@@ -669,8 +669,21 @@ def create_react_agent(
                     )
                 ]
             }
-        # We return a list, because this will get added to the existing list
-        return {"messages": [response]}
+        
+        # Generate structured response if response_format is provided
+        result = {"messages": [response]}
+        if structured_output_model is not None and not has_tool_calls:
+            # Only generate structured response when there are no tool calls (final response)
+            try:
+                # Use the model with structured output to parse the response
+                structured_model = model.with_structured_output(structured_output_model)
+                structured_response = await structured_model.ainvoke(state, config)
+                result["structured_response"] = structured_response
+            except Exception:
+                # If structured output generation fails, continue without it
+                pass
+        
+        return result
 
     if not tool_calling_enabled:
         # Define a new graph
@@ -749,6 +762,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
