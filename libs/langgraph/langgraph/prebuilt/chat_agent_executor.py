@@ -39,6 +39,8 @@ class AgentState(TypedDict):
 
     remaining_steps: RemainingSteps
 
+    structured_response: Optional[StructuredResponse]
+
 
 StateSchema = TypeVar("StateSchema", bound=AgentState)
 StateSchemaType = Type[StateSchema]
@@ -713,5 +715,6 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
