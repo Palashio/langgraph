@@ -544,6 +544,20 @@ def create_react_agent(
         ):
             raise ValueError(f"Missing required key(s) {missing_keys} in state_schema")
 
+    # Handle response_format parameter
+    structured_output_model = None
+    if response_format is not None:
+        if isinstance(response_format, tuple):
+            # Handle tuple format: ("name", Model)
+            _, structured_output_model = response_format
+        else:
+            # Handle direct model format: Model
+            structured_output_model = response_format
+        
+        # Use extended state schema when response_format is provided
+        if state_schema is None:
+            state_schema = AgentStateWithStructuredResponse
+
     if isinstance(tools, ToolExecutor):
         tool_classes: Sequence[BaseTool] = tools.tools
         tool_node = ToolNode(tool_classes)
@@ -722,6 +736,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
