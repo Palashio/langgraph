@@ -589,6 +589,12 @@ def create_react_agent(
     def call_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
         response = model_runnable.invoke(state, config)
+        
+        # Handle structured output if response_format is provided
+        structured_response = None
+        if structured_model is not None:
+            structured_response = structured_model_runnable.invoke(state, config)
+        
         has_tool_calls = isinstance(response, AIMessage) and response.tool_calls
         all_tools_return_direct = (
             all(call["name"] in should_return_direct for call in response.tool_calls)
@@ -612,7 +618,7 @@ def create_react_agent(
                 and has_tool_calls
             )
         ):
-            return {
+            result = {
                 "messages": [
                     AIMessage(
                         id=response.id,
@@ -620,8 +626,15 @@ def create_react_agent(
                     )
                 ]
             }
+            if structured_response is not None:
+                result["structured_response"] = structured_response
+            return result
+        
         # We return a list, because this will get added to the existing list
-        return {"messages": [response]}
+        result = {"messages": [response]}
+        if structured_response is not None:
+            result["structured_response"] = structured_response
+        return result
 
     async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
@@ -737,6 +750,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
