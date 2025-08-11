@@ -563,11 +563,23 @@ def create_react_agent(
     if _should_bind_tools(model, tool_classes) and tool_calling_enabled:
         model = cast(BaseChatModel, model).bind_tools(tool_classes)
 
+    # Handle structured output if response_format is provided
+    structured_model = None
+    if response_format is not None:
+        if isinstance(response_format, tuple):
+            # Handle tuple format: (name, BaseModel)
+            structured_model = model.with_structured_output(response_format[1])
+        else:
+            # Handle direct BaseModel format
+            structured_model = model.with_structured_output(response_format)
+
     # we're passing store here for validation
     preprocessor = _get_model_preprocessing_runnable(
         state_modifier, messages_modifier, store
     )
     model_runnable = preprocessor | model
+    if structured_model is not None:
+        structured_model_runnable = preprocessor | structured_model
 
     # If any of the tools are configured to return_directly after running,
     # our graph needs to check if these were called
@@ -725,6 +737,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
