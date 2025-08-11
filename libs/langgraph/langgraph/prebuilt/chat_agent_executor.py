@@ -243,6 +243,14 @@ def create_react_agent(
             - str: This is converted to a SystemMessage and added to the beginning of the list of messages in state["messages"].
             - Callable: This function should take in full graph state and the output is then passed to the language model.
             - Runnable: This runnable should take in full graph state and the output is then passed to the language model.
+        response_format: An optional response format for structured output.
+            Can take one of two forms:
+            
+            - BaseModel class: A Pydantic BaseModel class that defines the structure of the response.
+            - tuple[str, BaseModel]: A tuple containing a name and a BaseModel class for named structured output.
+            
+            When provided, the agent will generate structured responses that conform to the specified schema
+            and include them in the returned state under the `structured_response` key.
         checkpointer: An optional checkpoint saver object. This is used for persisting
             the state of the graph (e.g., as chat memory) for a single thread (e.g., a single conversation).
         store: An optional store object. This is used for persisting data
@@ -717,6 +725,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
