@@ -1,4 +1,14 @@
-from typing import Any, Callable, Literal, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -207,7 +217,9 @@ def create_react_agent(
     state_schema: Optional[StateSchemaType] = None,
     messages_modifier: Optional[MessagesModifier] = None,
     state_modifier: Optional[StateModifier] = None,
-    response_format: Optional[Union[Type[BaseModel], tuple[str, Type[BaseModel]]]] = None,
+    response_format: Optional[
+        Union[Type[BaseModel], tuple[str, Type[BaseModel]]]
+    ] = None,
     checkpointer: Optional[Checkpointer] = None,
     store: Optional[BaseStore] = None,
     interrupt_before: Optional[list[str]] = None,
@@ -245,10 +257,10 @@ def create_react_agent(
             - Runnable: This runnable should take in full graph state and the output is then passed to the language model.
         response_format: An optional response format for structured output.
             Can take one of two forms:
-            
+
             - BaseModel class: A Pydantic BaseModel class that defines the structure of the response.
             - tuple[str, BaseModel]: A tuple containing a name and a BaseModel class for named structured output.
-            
+
             When provided, the agent will generate structured responses that conform to the specified schema
             and include them in the returned state under the `structured_response` key.
         checkpointer: An optional checkpoint saver object. This is used for persisting
@@ -589,12 +601,12 @@ def create_react_agent(
     def call_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
         response = model_runnable.invoke(state, config)
-        
+
         # Handle structured output if response_format is provided
         structured_response = None
         if structured_model is not None:
             structured_response = structured_model_runnable.invoke(state, config)
-        
+
         has_tool_calls = isinstance(response, AIMessage) and response.tool_calls
         all_tools_return_direct = (
             all(call["name"] in should_return_direct for call in response.tool_calls)
@@ -629,7 +641,7 @@ def create_react_agent(
             if structured_response is not None:
                 result["structured_response"] = structured_response
             return result
-        
+
         # We return a list, because this will get added to the existing list
         result = {"messages": [response]}
         if structured_response is not None:
@@ -639,12 +651,12 @@ def create_react_agent(
     async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
         response = await model_runnable.ainvoke(state, config)
-        
+
         # Handle structured output if response_format is provided
         structured_response = None
         if structured_model is not None:
             structured_response = await structured_model_runnable.ainvoke(state, config)
-        
+
         has_tool_calls = isinstance(response, AIMessage) and response.tool_calls
         all_tools_return_direct = (
             all(call["name"] in should_return_direct for call in response.tool_calls)
@@ -679,7 +691,7 @@ def create_react_agent(
             if structured_response is not None:
                 result["structured_response"] = structured_response
             return result
-        
+
         # We return a list, because this will get added to the existing list
         result = {"messages": [response]}
         if structured_response is not None:
@@ -764,13 +776,3 @@ __all__ = [
     "AgentState",
     "StructuredResponse",
 ]
-
-
-
-
-
-
-
-
-
-
