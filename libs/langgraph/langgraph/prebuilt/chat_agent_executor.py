@@ -786,6 +786,44 @@ def create_react_agent(
         else:
             return "tools"
 
+    # Define the function that generates structured response
+    def respond(state: AgentState, config: RunnableConfig) -> AgentState:
+        """Generate structured response from the final AI message."""
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        if not isinstance(last_message, AIMessage):
+            raise ValueError("Expected last message to be an AIMessage for structured response generation")
+        
+        # Parse the structured response using the parsing function
+        structured_response = parse_structured_response(
+            model=model,
+            message_content=last_message.content or "",
+            response_format=response_format,
+            config=config
+        )
+        
+        return {"structured_response": structured_response}
+
+    async def arespond(state: AgentState, config: RunnableConfig) -> AgentState:
+        """Async version of respond function."""
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        if not isinstance(last_message, AIMessage):
+            raise ValueError("Expected last message to be an AIMessage for structured response generation")
+        
+        # Parse the structured response using the parsing function
+        # Note: parse_structured_response is synchronous, but we can still call it in async context
+        structured_response = parse_structured_response(
+            model=model,
+            message_content=last_message.content or "",
+            response_format=response_format,
+            config=config
+        )
+        
+        return {"structured_response": structured_response}
+
     # Define a new graph
     workflow = StateGraph(state_schema or AgentState)
 
@@ -839,6 +877,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
