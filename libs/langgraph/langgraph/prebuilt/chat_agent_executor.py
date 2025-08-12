@@ -45,7 +45,7 @@ class AgentState(TypedDict):
     is_last_step: IsLastStep
 
     remaining_steps: RemainingSteps
-    
+
     structured_response: Optional[Any]
 
 
@@ -568,17 +568,17 @@ def create_react_agent(
         def structured_output_func(**kwargs):
             """Tool for structured output response."""
             return "Structured response generated"
-        
+
         structured_output_tool = StructuredTool.from_function(
             func=structured_output_func,
             name=response_format.__name__,
             description=f"Use this tool to provide a structured response in {response_format.__name__} format",
             args_schema=response_format,
         )
-        
+
         # Add the structured output tool to the tools list
         tool_classes = list(tool_classes) + [structured_output_tool]
-        
+
         # Update the tool node to include the structured output tool
         if isinstance(tools, ToolExecutor):
             tool_node = ToolNode(tool_classes)
@@ -683,11 +683,14 @@ def create_react_agent(
         """Extract and parse structured response from tool calls."""
         messages = state["messages"]
         last_message = messages[-1]
-        
+
         if isinstance(last_message, AIMessage) and last_message.tool_calls:
             # Find the structured output tool call
             for tool_call in last_message.tool_calls:
-                if structured_output_tool and tool_call["name"] == structured_output_tool.name:
+                if (
+                    structured_output_tool
+                    and tool_call["name"] == structured_output_tool.name
+                ):
                     # Parse the structured response from the tool call arguments
                     try:
                         structured_response = response_format(**tool_call["args"])
@@ -698,7 +701,7 @@ def create_react_agent(
                         )
                         return {
                             "messages": [tool_message],
-                            "structured_response": structured_response
+                            "structured_response": structured_response,
                         }
                     except Exception as e:
                         # If parsing fails, return an error message
@@ -707,7 +710,7 @@ def create_react_agent(
                             tool_call_id=tool_call["id"],
                         )
                         return {"messages": [tool_message]}
-        
+
         # If no structured output tool call found, return empty update
         return {}
 
@@ -731,13 +734,13 @@ def create_react_agent(
         # If there is no function call, then we finish
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
             return "__end__"
-        
+
         # Check if the structured output tool is being called
         if structured_output_tool is not None:
             for tool_call in last_message.tool_calls:
                 if tool_call["name"] == structured_output_tool.name:
                     return "respond"
-        
+
         # Otherwise if there are other tool calls, we continue to tools
         return "tools"
 
@@ -747,7 +750,7 @@ def create_react_agent(
     # Define the nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
     workflow.add_node("tools", tool_node)
-    
+
     # Add the respond node for structured output handling
     if structured_output_tool is not None:
         workflow.add_node("respond", respond)
@@ -777,7 +780,7 @@ def create_react_agent(
         workflow.add_conditional_edges("tools", route_tool_responses)
     else:
         workflow.add_edge("tools", "agent")
-    
+
     # Add edge from respond node to end (structured output terminates the conversation)
     if structured_output_tool is not None:
         workflow.add_edge("respond", "__end__")
@@ -802,13 +805,3 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
-
-
-
-
-
-
-
-
-
-
