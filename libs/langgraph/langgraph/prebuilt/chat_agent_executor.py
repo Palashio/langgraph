@@ -1,4 +1,14 @@
-from typing import Any, Callable, Literal, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -28,10 +38,11 @@ StructuredResponse = Any
 
 __all__ = [
     "AgentState",
-    "AgentStateWithStructuredOutput", 
+    "AgentStateWithStructuredOutput",
     "StructuredResponse",
     "create_react_agent",
 ]
+
 
 # We create the AgentState that we will pass around
 # This simply involves a list of messages
@@ -610,21 +621,25 @@ def create_react_agent(
                     )
                 ]
             }
-        
+
         # Handle structured output parsing when response_format is provided
         # and there are no tool calls (indicating the agent is done)
         result = {"messages": [response]}
         if response_format is not None and not has_tool_calls:
             try:
                 # Create a model with structured output for parsing the final response
-                structured_model = cast(BaseChatModel, model).with_structured_output(response_format)
-                structured_response = structured_model.invoke(state["messages"] + [response], config)
+                structured_model = cast(BaseChatModel, model).with_structured_output(
+                    response_format
+                )
+                structured_response = structured_model.invoke(
+                    state["messages"] + [response], config
+                )
                 result["structured_response"] = structured_response
             except Exception:
                 # If structured output parsing fails, continue without it
                 # This ensures backwards compatibility and graceful degradation
                 pass
-        
+
         # We return a list, because this will get added to the existing list
         return result
 
@@ -662,21 +677,25 @@ def create_react_agent(
                     )
                 ]
             }
-        
+
         # Handle structured output parsing when response_format is provided
         # and there are no tool calls (indicating the agent is done)
         result = {"messages": [response]}
         if response_format is not None and not has_tool_calls:
             try:
                 # Create a model with structured output for parsing the final response
-                structured_model = cast(BaseChatModel, model).with_structured_output(response_format)
-                structured_response = await structured_model.ainvoke(state["messages"] + [response], config)
+                structured_model = cast(BaseChatModel, model).with_structured_output(
+                    response_format
+                )
+                structured_response = await structured_model.ainvoke(
+                    state["messages"] + [response], config
+                )
                 result["structured_response"] = structured_response
             except Exception:
                 # If structured output parsing fails, continue without it
                 # This ensures backwards compatibility and graceful degradation
                 pass
-        
+
         # We return a list, because this will get added to the existing list
         return result
 
@@ -685,7 +704,11 @@ def create_react_agent(
         # Use AgentStateWithStructuredOutput when response_format is provided
         effective_state_schema = state_schema
         if effective_state_schema is None:
-            effective_state_schema = AgentStateWithStructuredOutput if response_format is not None else AgentState
+            effective_state_schema = (
+                AgentStateWithStructuredOutput
+                if response_format is not None
+                else AgentState
+            )
         workflow = StateGraph(effective_state_schema)
         workflow.add_node("agent", RunnableCallable(call_model, acall_model))
         workflow.set_entry_point("agent")
@@ -713,7 +736,11 @@ def create_react_agent(
     # Use AgentStateWithStructuredOutput when response_format is provided
     effective_state_schema = state_schema
     if effective_state_schema is None:
-        effective_state_schema = AgentStateWithStructuredOutput if response_format is not None else AgentState
+        effective_state_schema = (
+            AgentStateWithStructuredOutput
+            if response_format is not None
+            else AgentState
+        )
     workflow = StateGraph(effective_state_schema)
 
     # Define the two nodes we will cycle between
@@ -766,13 +793,3 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
-
-
-
-
-
-
-
-
-
-
