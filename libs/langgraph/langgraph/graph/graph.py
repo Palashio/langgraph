@@ -208,23 +208,16 @@ class Graph:
         elif isinstance(path_map, list):
             path_map = {name: name for name in path_map}
         else:
-            # Try to get type hints from callable instances or regular functions
+            # Try to get type hints, handling both callable instances and regular functions
             rtn_type = None
             try:
-                # First try to get type hints from path.__call__ for callable instances
-                if hasattr(path, '__call__') and not callable(path):
-                    # This is likely a callable class instance
-                    rtn_type = get_type_hints(path.__call__).get("return")
-                else:
-                    # This is a regular function/method
-                    rtn_type = get_type_hints(path).get("return")
+                # First try the standard approach for functions/methods
+                rtn_type = get_type_hints(path).get("return")
             except TypeError:
-                # If get_type_hints fails, try the alternative approach
+                # If that fails, try to get type hints from __call__ method for callable instances
                 try:
                     if hasattr(path, '__call__'):
                         rtn_type = get_type_hints(path.__call__).get("return")
-                    else:
-                        rtn_type = get_type_hints(path).get("return")
                 except TypeError:
                     # If both approaches fail, skip type hint extraction
                     pass
@@ -513,4 +506,5 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
 
