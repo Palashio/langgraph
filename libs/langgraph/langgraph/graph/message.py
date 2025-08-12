@@ -65,7 +65,7 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         left = [left]
     if not isinstance(right, list):
         right = [right]
-    
+
     # separate RemoveMessage objects from regular messages in right
     remove_messages = []
     regular_messages = []
@@ -74,17 +74,17 @@ def add_messages(left: Messages, right: Messages) -> Messages:
             remove_messages.append(m)
         else:
             regular_messages.append(m)
-    
+
     # extract IDs to remove
     ids_to_remove = {rm.id for rm in remove_messages if rm.id is not None}
-    
+
     # coerce to message
     left = [message_chunk_to_message(m) for m in convert_to_messages(left)]
     right = [message_chunk_to_message(m) for m in convert_to_messages(regular_messages)]
-    
+
     # filter out messages from left that match removal IDs
     left = [m for m in left if m.id not in ids_to_remove]
-    
+
     # assign missing ids
     for m in left:
         if m.id is None:
@@ -156,5 +156,3 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
-
-
