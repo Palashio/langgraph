@@ -827,9 +827,13 @@ def create_react_agent(
     # Define a new graph
     workflow = StateGraph(state_schema or AgentState)
 
-    # Define the two nodes we will cycle between
+    # Define the nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
     workflow.add_node("tools", tool_node)
+    
+    # Add the respond node for structured output generation (only if response_format is specified)
+    if response_format is not None:
+        workflow.add_node("respond", RunnableCallable(respond, arespond))
 
     # Set the entrypoint as `agent`
     # This means that this node is the first one called
@@ -877,6 +881,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
