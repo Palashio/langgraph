@@ -2088,3 +2088,214 @@ def test_inspect_react() -> None:
     model = FakeToolCallingModel(tool_calls=[])
     agent = create_react_agent(model, [])
     inspect.getclosurevars(agent.nodes["agent"].bound.func)
+
+
+# Structured Output Tests
+class TestResponse(BaseModel):
+    """Test response model for structured output."""
+    answer: str = Field(description="The answer to the question")
+    confidence: float = Field(description="Confidence score between 0 and 1")
+
+
+def test_structured_output_basic() -> None:
+    """Test basic structured output parsing functionality."""
+    # Create a model that returns structured output
+    structured_response = TestResponse(answer="The answer is 42", confidence=0.95)
+    model = FakeToolCallingModel(
+        tool_calls=[[]],  # No tool calls, so agent should end and parse structured output
+        structured_response=structured_response
+    )
+    
+    # Create agent with response_format
+    agent = create_react_agent(model, [], response_format=TestResponse)
+    
+    # Test the agent
+    result = agent.invoke({"messages": [HumanMessage(content="What is the answer?")]})
+    
+    # Verify the structured response is included
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], TestResponse)
+    assert result["structured_response"].answer == "The answer is 42"
+    assert result["structured_response"].confidence == 0.95
+    
+    # Verify regular messages are still present
+    assert "messages" in result
+    assert len(result["messages"]) == 2  # Human message + AI response
+
+
+async def test_structured_output_async() -> None:
+    """Test structured output parsing in async execution."""
+    # Create a model that returns structured output
+    structured_response = TestResponse(answer="Async answer", confidence=0.85)
+    model = FakeToolCallingModel(
+        tool_calls=[[]],  # No tool calls, so agent should end and parse structured output
+        structured_response=structured_response
+    )
+    
+    # Create agent with response_format
+    agent = create_react_agent(model, [], response_format=TestResponse)
+    
+    # Test the agent asynchronously
+    result = await agent.ainvoke({"messages": [HumanMessage(content="What is the answer?")]})
+    
+    # Verify the structured response is included
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], TestResponse)
+    assert result["structured_response"].answer == "Async answer"
+    assert result["structured_response"].confidence == 0.85
+    
+    # Verify regular messages are still present
+    assert "messages" in result
+    assert len(result["messages"]) == 2  # Human message + AI response
+
+
+def test_structured_output_backwards_compatibility() -> None:
+    """Test that agents work normally when response_format is not provided."""
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    
+    # Create agent without response_format (backwards compatibility)
+    agent = create_react_agent(model, [])
+    
+    # Test the agent
+    result = agent.invoke({"messages": [HumanMessage(content="Hello")]})
+    
+    # Verify no structured response is included
+    assert "structured_response" not in result
+    
+    # Verify regular messages are still present
+    assert "messages" in result
+    assert len(result["messages"]) == 2  # Human message + AI response
+
+
+def test_structured_output_with_tools() -> None:
+    """Test that structured output only occurs when there are no tool calls."""
+    @dec_tool
+    def test_tool(input: str) -> str:
+        """A test tool."""
+        return f"Tool result: {input}"
+    
+    # First call has tool calls, second call has no tool calls
+    tool_calls = [
+        [ToolCall(name="test_tool", args={"input": "test"}, id="1")],
+        []  # No tool calls on second iteration
+    ]
+    
+    structured_response = TestResponse(answer="Final answer", confidence=0.9)
+    model = FakeToolCallingModel(
+        tool_calls=tool_calls,
+        structured_response=structured_response
+    )
+    
+    # Create agent with tools and response_format
+    agent = create_react_agent(model, [test_tool], response_format=TestResponse)
+    
+    # Test the agent
+    result = agent.invoke({"messages": [HumanMessage(content="Use the tool then give final answer")]})
+    
+    # Verify the structured response is included (only after tool execution)
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], TestResponse)
+    assert result["structured_response"].answer == "Final answer"
+    
+    # Verify messages include tool execution
+    assert "messages" in result
+    assert len(result["messages"]) == 4  # Human + AI with tool call + Tool result + Final AI
+
+
+def test_structured_output_error_handling() -> None:
+    """Test graceful error handling when structured output parsing fails."""
+    # Create a model that will fail structured output parsing
+    model = FakeToolCallingModel(
+        tool_calls=[[]],  # No tool calls
+        structured_response=None  # This will cause with_structured_output to fail
+    )
+    
+    # Create agent with response_format
+    agent = create_react_agent(model, [], response_format=TestResponse)
+    
+    # Test the agent - should not crash even if structured parsing fails
+    result = agent.invoke({"messages": [HumanMessage(content="Test")]})
+    
+    # Verify no structured response is included due to parsing failure
+    assert "structured_response" not in result
+    
+    # Verify regular messages are still present (graceful degradation)
+    assert "messages" in result
+    assert len(result["messages"]) == 2  # Human message + AI response
+
+
+def test_structured_output_custom_state_schema() -> None:
+    """Test that custom state schemas are respected when response_format is provided."""
+    class CustomState(TypedDict):
+        messages: Annotated[list[AnyMessage], add_messages]
+        custom_field: str
+    
+    structured_response = TestResponse(answer="Custom state answer", confidence=0.8)
+    model = FakeToolCallingModel(
+        tool_calls=[[]],
+        structured_response=structured_response
+    )
+    
+    # Create agent with custom state schema and response_format
+    agent = create_react_agent(
+        model, [], 
+        response_format=TestResponse,
+        state_schema=CustomState
+    )
+    
+    # Test the agent with custom state
+    result = agent.invoke({
+        "messages": [HumanMessage(content="Test with custom state")],
+        "custom_field": "test_value"
+    })
+    
+    # Verify the structured response is included
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], TestResponse)
+    assert result["structured_response"].answer == "Custom state answer"
+    
+    # Verify custom state field is preserved
+    assert "custom_field" in result
+    assert result["custom_field"] == "test_value"
+
+
+def test_structured_output_multiple_iterations() -> None:
+    """Test structured output with multiple agent iterations."""
+    @dec_tool
+    def calculator(operation: str, a: int, b: int) -> int:
+        """Perform basic math operations."""
+        if operation == "add":
+            return a + b
+        elif operation == "multiply":
+            return a * b
+        return 0
+    
+    # Multiple iterations: tool call -> tool call -> final answer
+    tool_calls = [
+        [ToolCall(name="calculator", args={"operation": "add", "a": 5, "b": 3}, id="1")],
+        [ToolCall(name="calculator", args={"operation": "multiply", "a": 8, "b": 2}, id="2")],
+        []  # Final iteration with no tool calls
+    ]
+    
+    structured_response = TestResponse(answer="The calculations are complete: 8 + 16 = 24", confidence=1.0)
+    model = FakeToolCallingModel(
+        tool_calls=tool_calls,
+        structured_response=structured_response
+    )
+    
+    # Create agent with tools and response_format
+    agent = create_react_agent(model, [calculator], response_format=TestResponse)
+    
+    # Test the agent
+    result = agent.invoke({"messages": [HumanMessage(content="Add 5+3, then multiply the result by 2")]})
+    
+    # Verify the structured response is included only at the end
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], TestResponse)
+    assert result["structured_response"].confidence == 1.0
+    
+    # Verify all tool executions occurred
+    assert "messages" in result
+    # Should have: Human + AI(tool1) + Tool1 + AI(tool2) + Tool2 + AI(final)
+    assert len(result["messages"]) == 6
+
