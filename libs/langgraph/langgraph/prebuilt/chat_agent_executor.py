@@ -552,6 +552,17 @@ def create_react_agent(
 
     if _should_bind_tools(model, tool_classes) and tool_calling_enabled:
         model = cast(BaseChatModel, model).bind_tools(tool_classes)
+    
+    # Handle structured output if response_format is provided
+    if response_format is not None:
+        if hasattr(model, 'with_structured_output'):
+            if isinstance(response_format, tuple):
+                # Handle tuple format: (name, BaseModel)
+                name, schema = response_format
+                model = model.with_structured_output(schema, method="json_mode")
+            else:
+                # Handle direct BaseModel class
+                model = model.with_structured_output(response_format, method="json_mode")
 
     # we're passing store here for validation
     preprocessor = _get_model_preprocessing_runnable(
@@ -715,6 +726,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
