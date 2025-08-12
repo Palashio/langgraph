@@ -691,6 +691,39 @@ def create_react_agent(
         else:
             return "tools"
 
+    # Define the function that generates structured responses
+    def respond(state: AgentState, config: RunnableConfig) -> AgentState:
+        if structured_output_model is None:
+            raise ValueError("structured_output_model is None but respond function was called")
+        
+        # Create a preprocessor for the structured output model
+        structured_preprocessor = _get_model_preprocessing_runnable(
+            state_modifier, messages_modifier, store
+        )
+        structured_runnable = structured_preprocessor | structured_output_model
+        
+        # Generate structured response from the conversation
+        structured_response = structured_runnable.invoke(state, config)
+        
+        # Return the structured response in the state
+        return {"structured_response": structured_response}
+
+    async def arespond(state: AgentState, config: RunnableConfig) -> AgentState:
+        if structured_output_model is None:
+            raise ValueError("structured_output_model is None but arespond function was called")
+        
+        # Create a preprocessor for the structured output model
+        structured_preprocessor = _get_model_preprocessing_runnable(
+            state_modifier, messages_modifier, store
+        )
+        structured_runnable = structured_preprocessor | structured_output_model
+        
+        # Generate structured response from the conversation
+        structured_response = await structured_runnable.ainvoke(state, config)
+        
+        # Return the structured response in the state
+        return {"structured_response": structured_response}
+
     # Define a new graph
     workflow = StateGraph(state_schema or AgentState)
 
@@ -744,6 +777,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
