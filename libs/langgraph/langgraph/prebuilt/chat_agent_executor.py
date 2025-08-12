@@ -1,4 +1,14 @@
-from typing import Any, Callable, Literal, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -25,6 +35,7 @@ from langgraph.utils.runnable import RunnableCallable
 
 # Type alias for structured response
 StructuredResponse = Any
+
 
 # We create the AgentState that we will pass around
 # This simply involves a list of messages
@@ -207,7 +218,9 @@ def create_react_agent(
     model: LanguageModelLike,
     tools: Union[ToolExecutor, Sequence[BaseTool], ToolNode],
     *,
-    response_format: Optional[Union[Type[BaseModel], tuple[str, Type[BaseModel]]]] = None,
+    response_format: Optional[
+        Union[Type[BaseModel], tuple[str, Type[BaseModel]]]
+    ] = None,
     state_schema: Optional[StateSchemaType] = None,
     messages_modifier: Optional[MessagesModifier] = None,
     state_modifier: Optional[StateModifier] = None,
@@ -570,10 +583,12 @@ def create_react_agent(
             schema = response_format[1]
         else:
             schema = response_format
-        
+
         # Create a model with structured output capability
-        structured_output_model = cast(BaseChatModel, model).with_structured_output(schema)
-        
+        structured_output_model = cast(BaseChatModel, model).with_structured_output(
+            schema
+        )
+
         # Use the extended state schema when response_format is provided
         if state_schema is None:
             state_schema = AgentStateWithStructuredResponse
@@ -694,33 +709,37 @@ def create_react_agent(
     # Define the function that generates structured responses
     def respond(state: AgentState, config: RunnableConfig) -> AgentState:
         if structured_output_model is None:
-            raise ValueError("structured_output_model is None but respond function was called")
-        
+            raise ValueError(
+                "structured_output_model is None but respond function was called"
+            )
+
         # Create a preprocessor for the structured output model
         structured_preprocessor = _get_model_preprocessing_runnable(
             state_modifier, messages_modifier, store
         )
         structured_runnable = structured_preprocessor | structured_output_model
-        
+
         # Generate structured response from the conversation
         structured_response = structured_runnable.invoke(state, config)
-        
+
         # Return the structured response in the state
         return {"structured_response": structured_response}
 
     async def arespond(state: AgentState, config: RunnableConfig) -> AgentState:
         if structured_output_model is None:
-            raise ValueError("structured_output_model is None but arespond function was called")
-        
+            raise ValueError(
+                "structured_output_model is None but arespond function was called"
+            )
+
         # Create a preprocessor for the structured output model
         structured_preprocessor = _get_model_preprocessing_runnable(
             state_modifier, messages_modifier, store
         )
         structured_runnable = structured_preprocessor | structured_output_model
-        
+
         # Generate structured response from the conversation
         structured_response = await structured_runnable.ainvoke(state, config)
-        
+
         # Return the structured response in the state
         return {"structured_response": structured_response}
 
@@ -730,7 +749,7 @@ def create_react_agent(
     # Define the nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
     workflow.add_node("tools", tool_node)
-    
+
     # Conditionally add the respond node for structured output
     if response_format is not None:
         workflow.add_node("respond", RunnableCallable(respond, arespond))
@@ -747,7 +766,7 @@ def create_react_agent(
         # Next, we pass in the function that will determine which node is called next.
         should_continue,
     )
-    
+
     # If we have structured output, add edge from respond to end
     if response_format is not None:
         workflow.add_edge("respond", "__end__")
@@ -787,15 +806,3 @@ __all__ = [
     "AgentStateWithStructuredResponse",
     "StructuredResponse",
 ]
-
-
-
-
-
-
-
-
-
-
-
-
