@@ -582,12 +582,10 @@ def create_react_agent(
         if isinstance(response_format, tuple):
             # Handle (name, BaseModel) tuple format
             name, schema = response_format
-            structured_model = model.with_structured_output(schema, method="json_mode")
+            structured_model = model.with_structured_output(schema)
         else:
             # Handle single BaseModel format
-            structured_model = model.with_structured_output(
-                response_format, method="json_mode"
-            )
+            structured_model = model.with_structured_output(response_format)
         model_runnable = preprocessor | structured_model
     else:
         model_runnable = preprocessor | model
@@ -791,3 +789,4 @@ __all__ = [
     "AgentState",
     "StructuredResponse",
 ]
+
