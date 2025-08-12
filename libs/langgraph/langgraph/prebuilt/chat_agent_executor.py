@@ -1,4 +1,14 @@
-from typing import Any, Callable, Literal, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -646,38 +656,42 @@ def create_react_agent(
         return {"messages": [response]}
 
     # Define the function that generates structured output
-    def respond(state: StructuredAgentState, config: RunnableConfig) -> StructuredAgentState:
+    def respond(
+        state: StructuredAgentState, config: RunnableConfig
+    ) -> StructuredAgentState:
         """Generate structured output using the response_format."""
         if response_format is None:
             raise ValueError("response_format must be provided when using respond node")
-        
+
         # Create a model with structured output
         structured_model = model.with_structured_output(response_format)
         structured_preprocessor = _get_model_preprocessing_runnable(
             state_modifier, messages_modifier, store
         )
         structured_model_runnable = structured_preprocessor | structured_model
-        
+
         # Generate structured response
         structured_response = structured_model_runnable.invoke(state, config)
-        
+
         return {"structured_response": structured_response}
 
-    async def arespond(state: StructuredAgentState, config: RunnableConfig) -> StructuredAgentState:
+    async def arespond(
+        state: StructuredAgentState, config: RunnableConfig
+    ) -> StructuredAgentState:
         """Generate structured output using the response_format (async version)."""
         if response_format is None:
             raise ValueError("response_format must be provided when using respond node")
-        
+
         # Create a model with structured output
         structured_model = model.with_structured_output(response_format)
         structured_preprocessor = _get_model_preprocessing_runnable(
             state_modifier, messages_modifier, store
         )
         structured_model_runnable = structured_preprocessor | structured_model
-        
+
         # Generate structured response
         structured_response = await structured_model_runnable.ainvoke(state, config)
-        
+
         return {"structured_response": structured_response}
 
     if not tool_calling_enabled:
@@ -719,7 +733,7 @@ def create_react_agent(
     # Define the nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
     workflow.add_node("tools", tool_node)
-    
+
     # Add respond node when response_format is provided
     if response_format is not None:
         workflow.add_node("respond", RunnableCallable(respond, arespond))
@@ -775,13 +789,3 @@ __all__ = [
     "AgentState",
     "StructuredAgentState",
 ]
-
-
-
-
-
-
-
-
-
-
