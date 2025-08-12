@@ -709,7 +709,7 @@ def create_react_agent(
     
     # Add respond node if response_format is provided
     if response_format is not None:
-        workflow.add_node("respond", RunnableCallable(respond, respond))
+        workflow.add_node("respond", respond)
 
     # Set the entrypoint as `agent`
     # This means that this node is the first one called
@@ -757,6 +757,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
