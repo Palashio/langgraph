@@ -715,15 +715,21 @@ def create_react_agent(
         )
 
     # Define the function that determines whether to continue or not
-    def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
+    def should_continue(state: AgentState) -> Literal["tools", "respond", "__end__"]:
         messages = state["messages"]
         last_message = messages[-1]
         # If there is no function call, then we finish
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
             return "__end__"
-        # Otherwise if there is, we continue
-        else:
-            return "tools"
+        
+        # Check if the structured output tool is being called
+        if structured_output_tool is not None:
+            for tool_call in last_message.tool_calls:
+                if tool_call["name"] == structured_output_tool.name:
+                    return "respond"
+        
+        # Otherwise if there are other tool calls, we continue to tools
+        return "tools"
 
     # Define a new graph
     workflow = StateGraph(state_schema or AgentState)
@@ -778,6 +784,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
