@@ -601,7 +601,28 @@ def create_react_agent(
                 ]
             }
         # We return a list, because this will get added to the existing list
-        return {"messages": [response]}
+        result = {"messages": [response]}
+        
+        # If response_format is provided and there are no tool calls, parse structured output
+        if (response_format is not None and 
+            isinstance(response, AIMessage) and 
+            not response.tool_calls):
+            try:
+                # Handle both BaseModel class and tuple formats
+                if isinstance(response_format, tuple):
+                    schema = response_format[1]
+                else:
+                    schema = response_format
+                
+                # Create a structured output model and parse the response
+                structured_model = model.with_structured_output(schema)
+                structured_response = structured_model.invoke(state["messages"] + [response], config)
+                result["structured_response"] = structured_response
+            except Exception:
+                # If structured parsing fails, continue without structured response
+                pass
+        
+        return result
 
     async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
@@ -717,6 +738,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
