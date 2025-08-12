@@ -223,6 +223,10 @@ def create_react_agent(
         model: The `LangChain` chat model that supports tool calling.
         tools: A list of tools, a ToolExecutor, or a ToolNode instance.
             If an empty list is provided, the agent will consist of a single LLM node without tool calling.
+        response_format: An optional response format for structured output.
+            Can be either a Pydantic BaseModel class or a tuple of (name, BaseModel class).
+            When provided, the agent will generate structured responses using the specified schema
+            and include them in the output under the 'structured_response' key.
         state_schema: An optional state schema that defines graph state.
             Must have `messages` and `is_last_step` keys.
             Defaults to `AgentState` that defines those two keys.
@@ -720,6 +724,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
