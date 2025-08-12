@@ -228,7 +228,7 @@ class Graph:
         # validate the condition
         if name in self.branches[source]:
             raise ValueError(
-                f"Branch with name `{path.name}` already exists for node " f"`{source}`"
+                f"Branch with name `{name}` already exists for node " f"`{source}`"
             )
         # save it
         self.branches[source][name] = Branch(path, path_map, then)
@@ -504,5 +504,6 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
 
 
