@@ -125,12 +125,10 @@ class Graph:
         return self.edges
 
     @overload
-    def add_node(self, node: RunnableLike) -> None:
-        ...
+    def add_node(self, node: RunnableLike) -> None: ...
 
     @overload
-    def add_node(self, node: str, action: RunnableLike) -> None:
-        ...
+    def add_node(self, node: str, action: RunnableLike) -> None: ...
 
     def add_node(
         self, node: Union[str, RunnableLike], action: Optional[RunnableLike] = None
@@ -173,7 +171,7 @@ class Graph:
 
 def _get_type_hints_safe(obj):
     """Safely get type hints, handling callable instances.
-    
+
     First tries to get type hints from the object directly.
     If that raises a TypeError (e.g., for callable instances),
     tries to get type hints from the __call__ method.
@@ -183,13 +181,12 @@ def _get_type_hints_safe(obj):
         return get_type_hints(obj)
     except TypeError:
         # For callable instances, try getting hints from __call__ method
-        if hasattr(obj, '__call__'):
+        if hasattr(obj, "__call__"):
             try:
                 return get_type_hints(obj.__call__)
             except TypeError:
                 pass
         return {}
-
 
     def add_conditional_edges(
         self,
@@ -237,7 +234,7 @@ def _get_type_hints_safe(obj):
         # validate the condition
         if name in self.branches[source]:
             raise ValueError(
-                f"Branch with name `{path.name}` already exists for node " f"`{source}`"
+                f"Branch with name `{path.name}` already exists for node `{source}`"
             )
         # save it
         self.branches[source][name] = Branch(path, path_map, then)
@@ -513,5 +510,3 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
-
-
