@@ -23,6 +23,8 @@ from langgraph.store.base import BaseStore
 from langgraph.types import Checkpointer
 from langgraph.utils.runnable import RunnableCallable
 
+# Type alias for structured responses returned by with_structured_output
+StructuredResponse = Any
 
 # We create the AgentState that we will pass around
 # This simply involves a list of messages
@@ -757,6 +759,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
