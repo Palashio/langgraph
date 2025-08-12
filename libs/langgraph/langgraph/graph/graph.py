@@ -37,6 +37,31 @@ from langgraph.utils import DrawableGraph, RunnableCallable, coerce_to_runnable
 logger = logging.getLogger(__name__)
 
 
+def _get_type_hints_safe(obj: Any) -> dict[str, Any]:
+    """Safely extract type hints from an object.
+    
+    First tries to get type hints from the object directly.
+    If that fails with TypeError or AttributeError, attempts to get
+    type hints from obj.__call__ for callable instances.
+    If both fail, returns an empty dictionary.
+    
+    Args:
+        obj: The object to extract type hints from
+        
+    Returns:
+        Dictionary of type hints, or empty dict if extraction fails
+    """
+    try:
+        return get_type_hints(obj)
+    except (TypeError, AttributeError):
+        if hasattr(obj, '__call__'):
+            try:
+                return get_type_hints(obj.__call__)
+            except (TypeError, AttributeError):
+                pass
+        return {}
+
+
 class Branch(NamedTuple):
     path: Runnable[Any, Union[Hashable, list[Hashable]]]
     ends: Optional[dict[Hashable, str]]
@@ -492,3 +517,4 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
