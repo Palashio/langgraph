@@ -679,6 +679,23 @@ def create_react_agent(
         else:
             return "tools"
 
+    # Define the respond node for structured output
+    def respond(state: AgentState, config: RunnableConfig) -> AgentState:
+        # Extract the schema from response_format
+        if isinstance(response_format, tuple):
+            schema = response_format[1]
+        else:
+            schema = response_format
+        
+        # Create a model with structured output
+        structured_model = model.with_structured_output(schema)
+        
+        # Get the structured response
+        structured_response = structured_model.invoke(state["messages"], config)
+        
+        # Return the state with the structured response
+        return {"structured_response": structured_response}
+
     # Define a new graph
     workflow = StateGraph(state_schema or AgentState)
 
@@ -732,6 +749,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
