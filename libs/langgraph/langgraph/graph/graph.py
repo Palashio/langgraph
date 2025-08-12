@@ -168,6 +168,57 @@ class Graph:
 
         self.edges.add((start_key, end_key))
 
+    def add_conditional_edges(
+        self,
+        source: str,
+        path: Union[
+            Callable[..., Union[Hashable, list[Hashable]]],
+            Callable[..., Awaitable[Union[Hashable, list[Hashable]]]],
+            Runnable[Any, Union[Hashable, list[Hashable]]],
+        ],
+        path_map: Optional[Union[dict[Hashable, str], list[str]]] = None,
+        then: Optional[str] = None,
+    ) -> None:
+        """Add a conditional edge from the starting node to any number of destination nodes.
+
+        Args:
+            source (str): The starting node. This conditional edge will run when
+                exiting this node.
+            path (Union[Callable, Runnable]): The callable that determines the next
+                node or nodes. If not specifying `path_map` it should return one or
+                more nodes. If it returns END, the graph will stop execution.
+            path_map (Optional[dict[Hashable, str]]): Optional mapping of paths to node
+                names. If omitted the paths returned by `path` should be node names.
+            then (Optional[str]): The name of a node to execute after the nodes
+                selected by `path`.
+
+        Returns:
+            None
+        """  # noqa: E501
+        if self.compiled:
+            logger.warning(
+                "Adding an edge to a graph that has already been compiled. This will "
+                "not be reflected in the compiled graph."
+            )
+        # coerce path_map to a dictionary
+        if isinstance(path_map, dict):
+            path_map = path_map.copy()
+        elif isinstance(path_map, list):
+            path_map = {name: name for name in path_map}
+        elif rtn_type := _get_type_hints_safe(path).get("return"):
+            if get_origin(rtn_type) is Literal:
+                path_map = {name: name for name in get_args(rtn_type)}
+        # find a name for the condition
+        path = coerce_to_runnable(path, name=None, trace=True)
+        name = path.name or "condition"
+        # validate the condition
+        if name in self.branches[source]:
+            raise ValueError(
+                f"Branch with name `{path.name}` already exists for node `{source}`"
+            )
+        # save it
+        self.branches[source][name] = Branch(path, path_map, then)
+
 
 def _get_type_hints_safe(obj):
     """Safely get type hints, handling callable instances.
@@ -459,5 +510,6 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
 
 
