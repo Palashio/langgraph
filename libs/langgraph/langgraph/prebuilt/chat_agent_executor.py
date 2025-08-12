@@ -40,6 +40,7 @@ class AgentState(TypedDict):
 
 StateSchema = TypeVar("StateSchema", bound=AgentState)
 StateSchemaType = Type[StateSchema]
+StructuredResponse = TypeVar("StructuredResponse", bound=BaseModel)
 
 STATE_MODIFIER_RUNNABLE_NAME = "StateModifier"
 
@@ -711,4 +712,5 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
