@@ -131,8 +131,7 @@ class Channel:
         *,
         key: Optional[str] = None,
         tags: Optional[list[str]] = None,
-    ) -> PregelNode:
-        ...
+    ) -> PregelNode: ...
 
     @overload
     @classmethod
@@ -142,8 +141,7 @@ class Channel:
         *,
         key: None = None,
         tags: Optional[list[str]] = None,
-    ) -> PregelNode:
-        ...
+    ) -> PregelNode: ...
 
     @classmethod
     def subscribe_to(
@@ -373,11 +371,12 @@ class Pregel(
         saved = self.checkpointer.get_tuple(config)
         checkpoint = saved.checkpoint if saved else empty_checkpoint()
         config = saved.config if saved else config
-        with ChannelsManager(
-            self.channels, checkpoint, config
-        ) as channels, ManagedValuesManager(
-            self.managed_values_dict, ensure_config(config), self
-        ) as managed:
+        with (
+            ChannelsManager(self.channels, checkpoint, config) as channels,
+            ManagedValuesManager(
+                self.managed_values_dict, ensure_config(config), self
+            ) as managed,
+        ):
             _, next_tasks = _prepare_next_tasks(
                 checkpoint,
                 self.nodes,
@@ -405,11 +404,12 @@ class Pregel(
         checkpoint = saved.checkpoint if saved else empty_checkpoint()
 
         config = saved.config if saved else config
-        async with AsyncChannelsManager(
-            self.channels, checkpoint, config
-        ) as channels, AsyncManagedValuesManager(
-            self.managed_values_dict, ensure_config(config), self
-        ) as managed:
+        async with (
+            AsyncChannelsManager(self.channels, checkpoint, config) as channels,
+            AsyncManagedValuesManager(
+                self.managed_values_dict, ensure_config(config), self
+            ) as managed,
+        ):
             _, next_tasks = _prepare_next_tasks(
                 checkpoint,
                 self.nodes,
@@ -447,11 +447,12 @@ class Pregel(
         for config, checkpoint, metadata, parent_config, _ in self.checkpointer.list(
             config, before=before, limit=limit, filter=filter
         ):
-            with ChannelsManager(
-                self.channels, checkpoint, config
-            ) as channels, ManagedValuesManager(
-                self.managed_values_dict, ensure_config(config), self
-            ) as managed:
+            with (
+                ChannelsManager(self.channels, checkpoint, config) as channels,
+                ManagedValuesManager(
+                    self.managed_values_dict, ensure_config(config), self
+                ) as managed,
+            ):
                 _, next_tasks = _prepare_next_tasks(
                     checkpoint,
                     self.nodes,
@@ -493,11 +494,12 @@ class Pregel(
             parent_config,
             _,
         ) in self.checkpointer.alist(config, before=before, limit=limit, filter=filter):
-            async with AsyncChannelsManager(
-                self.channels, checkpoint, config
-            ) as channels, AsyncManagedValuesManager(
-                self.managed_values_dict, ensure_config(config), self
-            ) as managed:
+            async with (
+                AsyncChannelsManager(self.channels, checkpoint, config) as channels,
+                AsyncManagedValuesManager(
+                    self.managed_values_dict, ensure_config(config), self
+                ) as managed,
+            ):
                 _, next_tasks = _prepare_next_tasks(
                     checkpoint,
                     self.nodes,
@@ -876,13 +878,11 @@ class Pregel(
 
             start = saved.metadata.get("step", -2) + 1 if saved else -1
             # create channels from checkpoint
-            with ChannelsManager(
-                self.channels, checkpoint, config
-            ) as channels, get_executor_for_config(
-                config
-            ) as executor, ManagedValuesManager(
-                self.managed_values_dict, config, self
-            ) as managed:
+            with (
+                ChannelsManager(self.channels, checkpoint, config) as channels,
+                get_executor_for_config(config) as executor,
+                ManagedValuesManager(self.managed_values_dict, config, self) as managed,
+            ):
 
                 def put_writes(task_id: str, writes: Sequence[tuple[str, Any]]) -> None:
                     if self.checkpointer is not None:
@@ -1334,11 +1334,12 @@ class Pregel(
 
             start = saved.metadata.get("step", -2) + 1 if saved else -1
             # create channels from checkpoint
-            async with AsyncChannelsManager(
-                self.channels, checkpoint, config
-            ) as channels, AsyncManagedValuesManager(
-                self.managed_values_dict, config, self
-            ) as managed:
+            async with (
+                AsyncChannelsManager(self.channels, checkpoint, config) as channels,
+                AsyncManagedValuesManager(
+                    self.managed_values_dict, config, self
+                ) as managed,
+            ):
 
                 def put_writes(task_id: str, writes: Sequence[tuple[str, Any]]) -> None:
                     if self.checkpointer is not None:
@@ -1914,8 +1915,7 @@ def _prepare_next_tasks(
     for_execution: Literal[False],
     get_next_version: Literal[None] = None,
     manager: Literal[None] = None,
-) -> tuple[Checkpoint, list[PregelTaskDescription]]:
-    ...
+) -> tuple[Checkpoint, list[PregelTaskDescription]]: ...
 
 
 @overload
@@ -1929,8 +1929,7 @@ def _prepare_next_tasks(
     for_execution: Literal[True],
     get_next_version: Callable[[int, BaseChannel], int],
     manager: Union[None, ParentRunManager, AsyncParentRunManager],
-) -> tuple[Checkpoint, list[PregelExecutableTask]]:
-    ...
+) -> tuple[Checkpoint, list[PregelExecutableTask]]: ...
 
 
 def _prepare_next_tasks(
