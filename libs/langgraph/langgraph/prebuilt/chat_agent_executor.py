@@ -690,13 +690,18 @@ def create_react_agent(
         )
 
     # Define the function that determines whether to continue or not
-    def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
+    def should_continue(state: AgentState) -> Literal["tools", "respond", "__end__"]:
         messages = state["messages"]
         last_message = messages[-1]
-        # If there is no function call, then we finish
+        # If there is no function call, then we check if we need structured output
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
-            return "__end__"
-        # Otherwise if there is, we continue
+            # If response_format is provided, route to respond node for structured output
+            if response_format is not None:
+                return "respond"
+            # Otherwise finish
+            else:
+                return "__end__"
+        # Otherwise if there is, we continue with tools
         else:
             return "tools"
 
@@ -753,6 +758,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
