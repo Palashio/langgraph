@@ -1,4 +1,15 @@
-from typing import Any, Callable, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -212,7 +223,9 @@ def create_react_agent(
     interrupt_before: Optional[list[str]] = None,
     interrupt_after: Optional[list[str]] = None,
     debug: bool = False,
-    response_format: Optional[Union[Type[BaseModel], Tuple[str, Type[BaseModel]]]] = None,
+    response_format: Optional[
+        Union[Type[BaseModel], Tuple[str, Type[BaseModel]]]
+    ] = None,
 ) -> CompiledGraph:
     """Creates a graph that works with a chat model that utilizes tool calling.
 
@@ -563,7 +576,7 @@ def create_react_agent(
     preprocessor = _get_model_preprocessing_runnable(
         state_modifier, messages_modifier, store
     )
-    
+
     # Handle structured output if response_format is provided
     if response_format is not None:
         if isinstance(response_format, tuple):
@@ -572,7 +585,9 @@ def create_react_agent(
             structured_model = model.with_structured_output(schema, method="json_mode")
         else:
             # Handle single BaseModel format
-            structured_model = model.with_structured_output(response_format, method="json_mode")
+            structured_model = model.with_structured_output(
+                response_format, method="json_mode"
+            )
         model_runnable = preprocessor | structured_model
     else:
         model_runnable = preprocessor | model
@@ -585,20 +600,20 @@ def create_react_agent(
     def call_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
         response = model_runnable.invoke(state, config)
-        
+
         # Handle structured output extraction
         structured_response = None
         if response_format is not None:
             # When using structured output, the response is the structured data
             structured_response = response
             # Create a regular AIMessage for the messages list
-            if hasattr(response, 'model_dump'):
+            if hasattr(response, "model_dump"):
                 # Convert structured response to a readable message
                 content = f"Structured response: {response.model_dump()}"
             else:
                 content = f"Structured response: {response}"
             response = AIMessage(content=content)
-        
+
         has_tool_calls = isinstance(response, AIMessage) and response.tool_calls
         all_tools_return_direct = (
             all(call["name"] in should_return_direct for call in response.tool_calls)
@@ -625,7 +640,7 @@ def create_react_agent(
             result = {
                 "messages": [
                     AIMessage(
-                        id=response.id if hasattr(response, 'id') else None,
+                        id=response.id if hasattr(response, "id") else None,
                         content="Sorry, need more steps to process this request.",
                     )
                 ]
@@ -633,7 +648,7 @@ def create_react_agent(
             if structured_response is not None:
                 result["structured_response"] = structured_response
             return result
-        
+
         # We return a list, because this will get added to the existing list
         result = {"messages": [response]}
         if structured_response is not None:
@@ -643,20 +658,20 @@ def create_react_agent(
     async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
         response = await model_runnable.ainvoke(state, config)
-        
+
         # Handle structured output extraction
         structured_response = None
         if response_format is not None:
             # When using structured output, the response is the structured data
             structured_response = response
             # Create a regular AIMessage for the messages list
-            if hasattr(response, 'model_dump'):
+            if hasattr(response, "model_dump"):
                 # Convert structured response to a readable message
                 content = f"Structured response: {response.model_dump()}"
             else:
                 content = f"Structured response: {response}"
             response = AIMessage(content=content)
-        
+
         has_tool_calls = isinstance(response, AIMessage) and response.tool_calls
         all_tools_return_direct = (
             all(call["name"] in should_return_direct for call in response.tool_calls)
@@ -683,7 +698,7 @@ def create_react_agent(
             result = {
                 "messages": [
                     AIMessage(
-                        id=response.id if hasattr(response, 'id') else None,
+                        id=response.id if hasattr(response, "id") else None,
                         content="Sorry, need more steps to process this request.",
                     )
                 ]
@@ -691,7 +706,7 @@ def create_react_agent(
             if structured_response is not None:
                 result["structured_response"] = structured_response
             return result
-        
+
         # We return a list, because this will get added to the existing list
         result = {"messages": [response]}
         if structured_response is not None:
@@ -776,15 +791,3 @@ __all__ = [
     "AgentState",
     "StructuredResponse",
 ]
-
-
-
-
-
-
-
-
-
-
-
-
