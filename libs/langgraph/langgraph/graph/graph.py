@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 def _get_type_hints_safe(path):
     """Get type hints, handling callable class instances.
-    
+
     First tries get_type_hints(path), and if that raises a TypeError,
     tries get_type_hints(path.__call__) for callable class instances.
     If both fail, returns an empty dict.
@@ -142,12 +142,10 @@ class Graph:
         return self.edges
 
     @overload
-    def add_node(self, node: RunnableLike) -> None:
-        ...
+    def add_node(self, node: RunnableLike) -> None: ...
 
     @overload
-    def add_node(self, node: str, action: RunnableLike) -> None:
-        ...
+    def add_node(self, node: str, action: RunnableLike) -> None: ...
 
     def add_node(
         self, node: Union[str, RunnableLike], action: Optional[RunnableLike] = None
@@ -233,7 +231,7 @@ class Graph:
         # validate the condition
         if name in self.branches[source]:
             raise ValueError(
-                f"Branch with name `{path.name}` already exists for node " f"`{source}`"
+                f"Branch with name `{path.name}` already exists for node `{source}`"
             )
         # save it
         self.branches[source][name] = Branch(path, path_map, then)
@@ -509,5 +507,3 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
-
-
