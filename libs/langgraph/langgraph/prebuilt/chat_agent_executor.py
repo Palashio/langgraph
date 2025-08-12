@@ -254,6 +254,10 @@ def create_react_agent(
             Should be one of the following: "agent", "tools".
             This is useful if you want to return directly or run additional processing on an output.
         debug: A flag indicating whether to enable debug mode.
+        response_format: An optional response format for structured output.
+            Can be either a Pydantic BaseModel class or a tuple of (name, BaseModel).
+            When provided, the agent will return a `structured_response` key in the output
+            containing an instance of the specified BaseModel with extracted structured data.
 
     Returns:
         A compiled LangChain runnable that can be used for chat interactions.
@@ -717,6 +721,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
