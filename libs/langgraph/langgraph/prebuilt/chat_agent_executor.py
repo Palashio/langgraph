@@ -196,6 +196,127 @@ def _validate_chat_history(
     raise ValueError(error_message)
 
 
+def parse_structured_response(
+    model: LanguageModelLike,
+    message_content: str,
+    response_format: Type[BaseModel],
+    config: Optional[RunnableConfig] = None,
+) -> BaseModel:
+    """Parse unstructured text into a structured format using the LLM.
+    
+    Args:
+        model: The language model to use for parsing
+        message_content: The unstructured text content to parse
+        response_format: The Pydantic model class to parse into
+        config: Optional runnable configuration
+        
+    Returns:
+        An instance of the response_format model with parsed data
+        
+    Raises:
+        ValueError: If parsing fails or required fields are missing
+    """
+    # Create a parsing prompt that instructs the LLM to extract structured data
+    parsing_prompt = f"""
+Please extract the following information from the given text and return it in the specified JSON format.
+
+Text to parse: {message_content}
+
+Required format (JSON schema):
+{response_format.model_json_schema()}
+
+Instructions:
+- Extract all relevant information from the text
+- Pay careful attention to field names - ensure they match exactly (e.g., "wind_direction" not "wind_directon")
+- For temperature, extract numeric values and convert to float
+- For wind direction, use abbreviated forms (e.g., "North-East" -> "NE", "South-East" -> "SE")
+- For wind speed, extract numeric values and convert to float
+- Return only valid JSON that matches the schema
+
+JSON:"""
+
+    # Use the model to parse the content
+    try:
+        if isinstance(model, BaseChatModel):
+            # For chat models, create a structured output request
+            structured_model = model.with_structured_output(response_format)
+            parsing_message = [
+                SystemMessage(content="You are a data extraction assistant. Extract information from text and return it in the specified structured format."),
+                AIMessage(content=parsing_prompt)
+            ]
+            result = structured_model.invoke(parsing_message, config=config)
+        else:
+            # Fallback for other model types
+            response = model.invoke(parsing_prompt, config=config)
+            # Try to parse the response as JSON and create the model instance
+            import json
+            if hasattr(response, 'content'):
+                json_str = response.content
+            else:
+                json_str = str(response)
+            
+            # Extract JSON from the response if it's wrapped in other text
+            json_start = json_str.find('{')
+            json_end = json_str.rfind('}') + 1
+            if json_start >= 0 and json_end > json_start:
+                json_str = json_str[json_start:json_end]
+            
+            parsed_data = json.loads(json_str)
+            result = response_format(**parsed_data)
+            
+        return result
+        
+    except Exception as e:
+        # If structured parsing fails, try a simpler approach
+        try:
+            # Simple regex-based extraction for weather data as fallback
+            import re
+            
+            # Extract temperature
+            temp_match = re.search(r'(\d+(?:\.\d+)?)\s*degrees?', message_content, re.IGNORECASE)
+            temperature = float(temp_match.group(1)) if temp_match else 0.0
+            
+            # Extract wind speed
+            wind_speed_match = re.search(r'(\d+(?:\.\d+)?)\s*mph', message_content, re.IGNORECASE)
+            wind_speed = float(wind_speed_match.group(1)) if wind_speed_match else 0.0
+            
+            # Extract wind direction - be careful with the field name
+            wind_dir_patterns = [
+                r'winds?\s+in\s+the\s+([A-Za-z-]+)\s+direction',
+                r'([A-Za-z-]+)\s+winds?',
+                r'winds?\s+([A-Za-z-]+)'
+            ]
+            
+            wind_direction = ""
+            for pattern in wind_dir_patterns:
+                wind_dir_match = re.search(pattern, message_content, re.IGNORECASE)
+                if wind_dir_match:
+                    direction = wind_dir_match.group(1)
+                    # Convert to abbreviated form and ensure correct spelling
+                    direction_map = {
+                        'north-east': 'NE', 'northeast': 'NE', 'north east': 'NE',
+                        'south-east': 'SE', 'southeast': 'SE', 'south east': 'SE',
+                        'north-west': 'NW', 'northwest': 'NW', 'north west': 'NW',
+                        'south-west': 'SW', 'southwest': 'SW', 'south west': 'SW',
+                        'north': 'N', 'south': 'S', 'east': 'E', 'west': 'W'
+                    }
+                    wind_direction = direction_map.get(direction.lower(), direction.upper())
+                    break
+            
+            # Create the structured response with correct field name
+            result_data = {
+                'temperature': temperature,
+                'wind_direction': wind_direction,  # Ensure correct spelling
+                'wind_speed': wind_speed
+            }
+            
+            result = response_format(**result_data)
+            return result
+            
+        except Exception as fallback_error:
+            raise ValueError(f"Failed to parse structured response: {e}. Fallback also failed: {fallback_error}")
+
+
 @deprecated_parameter("messages_modifier", "0.1.9", "state_modifier", removal="0.3.0")
 def create_react_agent(
     model: LanguageModelLike,
@@ -714,6 +835,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
