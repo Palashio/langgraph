@@ -170,6 +170,27 @@ class Graph:
 
         self.edges.add((start_key, end_key))
 
+
+def _get_type_hints_safe(obj):
+    """Safely get type hints, handling callable instances.
+    
+    First tries to get type hints from the object directly.
+    If that raises a TypeError (e.g., for callable instances),
+    tries to get type hints from the __call__ method.
+    Returns an empty dictionary if both attempts fail.
+    """
+    try:
+        return get_type_hints(obj)
+    except TypeError:
+        # For callable instances, try getting hints from __call__ method
+        if hasattr(obj, '__call__'):
+            try:
+                return get_type_hints(obj.__call__)
+            except TypeError:
+                pass
+        return {}
+
+
     def add_conditional_edges(
         self,
         source: str,
@@ -492,3 +513,4 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
