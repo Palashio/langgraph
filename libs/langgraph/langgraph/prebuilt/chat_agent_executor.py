@@ -24,6 +24,9 @@ from langgraph.types import Checkpointer
 from langgraph.utils.runnable import RunnableCallable
 
 
+StructuredResponse = TypeVar("StructuredResponse")
+
+
 # We create the AgentState that we will pass around
 # This simply involves a list of messages
 # We want steps to return messages to append to the list
@@ -711,5 +714,6 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
