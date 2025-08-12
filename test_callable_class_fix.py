@@ -2,6 +2,9 @@
 
 from typing import Any, Dict, Literal, TypedDict
 
+import sys
+sys.path.insert(0, '/home/daytona/langgraph/libs/langgraph')
+
 from langgraph.graph import END
 from langgraph.graph.state import StateGraph
 
@@ -61,3 +64,4 @@ def test_callable_class_conditional_edges_without_path_map():
 if __name__ == "__main__":
     test_callable_class_conditional_edges_without_path_map()
     print("Test passed! The fix works correctly.")
+
