@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, '/home/daytona/langgraph/libs/langgraph')
 
 from typing import TypedDict
-from langgraph import StateGraph
+from langgraph.graph.state import StateGraph
 
 def test_callable_in_conditional_edges_with_no_path_map():
     """Test that callable class instances work with add_conditional_edges"""
@@ -50,3 +50,4 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         sys.exit(1)
+
