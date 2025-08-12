@@ -1034,6 +1034,11 @@ class Pregel(
                         self.stream_channels_list,
                         next_tasks,
                     ):
+                        # update versions_seen[INTERRUPT] when interruption actually occurs
+                        for k in self.stream_channels_list:
+                            if k in checkpoint["channel_versions"]:
+                                version = checkpoint["channel_versions"][k]
+                                checkpoint["versions_seen"][INTERRUPT][k] = version
                         break
                     else:
                         checkpoint = next_checkpoint
@@ -1161,6 +1166,11 @@ class Pregel(
                         self.stream_channels_list,
                         next_tasks,
                     ):
+                        # update versions_seen[INTERRUPT] when interruption actually occurs
+                        for k in self.stream_channels_list:
+                            if k in checkpoint["channel_versions"]:
+                                version = checkpoint["channel_versions"][k]
+                                checkpoint["versions_seen"][INTERRUPT][k] = version
                         break
                 else:
                     raise GraphRecursionError(
