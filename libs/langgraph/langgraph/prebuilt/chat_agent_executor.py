@@ -562,6 +562,22 @@ def create_react_agent(
     if _should_bind_tools(model, tool_classes) and tool_calling_enabled:
         model = cast(BaseChatModel, model).bind_tools(tool_classes)
 
+    # Handle structured output configuration
+    structured_output_model = None
+    if response_format is not None:
+        # Extract the schema from response_format (handle both single model and tuple formats)
+        if isinstance(response_format, tuple):
+            schema = response_format[1]
+        else:
+            schema = response_format
+        
+        # Create a model with structured output capability
+        structured_output_model = cast(BaseChatModel, model).with_structured_output(schema)
+        
+        # Use the extended state schema when response_format is provided
+        if state_schema is None:
+            state_schema = AgentStateWithStructuredResponse
+
     # we're passing store here for validation
     preprocessor = _get_model_preprocessing_runnable(
         state_modifier, messages_modifier, store
@@ -724,6 +740,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
