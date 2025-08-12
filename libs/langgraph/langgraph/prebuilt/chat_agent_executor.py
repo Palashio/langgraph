@@ -668,6 +668,39 @@ def create_react_agent(
         # We return a list, because this will get added to the existing list
         return {"messages": [response]}
 
+    # Define the function that responds with structured output
+    def respond(state: AgentState) -> AgentState:
+        """Extract and parse structured response from tool calls."""
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        if isinstance(last_message, AIMessage) and last_message.tool_calls:
+            # Find the structured output tool call
+            for tool_call in last_message.tool_calls:
+                if structured_output_tool and tool_call["name"] == structured_output_tool.name:
+                    # Parse the structured response from the tool call arguments
+                    try:
+                        structured_response = response_format(**tool_call["args"])
+                        # Create a tool message to complete the conversation
+                        tool_message = ToolMessage(
+                            content="Structured response generated",
+                            tool_call_id=tool_call["id"],
+                        )
+                        return {
+                            "messages": [tool_message],
+                            "structured_response": structured_response
+                        }
+                    except Exception as e:
+                        # If parsing fails, return an error message
+                        tool_message = ToolMessage(
+                            content=f"Error parsing structured response: {str(e)}",
+                            tool_call_id=tool_call["id"],
+                        )
+                        return {"messages": [tool_message]}
+        
+        # If no structured output tool call found, return empty update
+        return {}
+
     if not tool_calling_enabled:
         # Define a new graph
         workflow = StateGraph(state_schema or AgentState)
@@ -745,6 +778,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
