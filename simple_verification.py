@@ -131,7 +131,7 @@ def verify_imports():
         # Check for required imports
         required_imports = [
             "from pydantic import BaseModel",
-            "from typing import Any",
+            "Any,",  # Any is imported in the typing tuple
         ]
         
         for import_stmt in required_imports:
@@ -184,3 +184,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
