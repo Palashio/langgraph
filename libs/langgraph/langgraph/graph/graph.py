@@ -510,6 +510,3 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
-
-
-
