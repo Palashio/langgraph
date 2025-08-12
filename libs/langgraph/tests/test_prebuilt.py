@@ -2088,3 +2088,67 @@ def test_inspect_react() -> None:
     model = FakeToolCallingModel(tool_calls=[])
     agent = create_react_agent(model, [])
     inspect.getclosurevars(agent.nodes["agent"].bound.func)
+
+
+def test_react_agent_with_structured_response() -> None:
+    """Test that create_react_agent works with structured response format."""
+    
+    # Define a test response model
+    class WeatherResponse(BaseModel):
+        temperature: float
+        wind_direction: str
+        wind_speed: float
+    
+    # Create a mock weather response
+    mock_weather = WeatherResponse(
+        temperature=72.5,
+        wind_direction="NW", 
+        wind_speed=15.2
+    )
+    
+    # Test with single BaseModel format
+    model = FakeToolCallingModel(tool_calls=[], structured_response=mock_weather)
+    
+    @dec_tool
+    def get_weather(location: str) -> str:
+        """Get weather for a location."""
+        return f"Weather in {location}: sunny"
+    
+    agent = create_react_agent(model, [get_weather], response_format=WeatherResponse)
+    
+    result = agent.invoke({
+        "messages": [HumanMessage(content="What's the weather like?")]
+    })
+    
+    # Verify the result contains structured_response
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+    assert result["structured_response"].temperature == 72.5
+    assert result["structured_response"].wind_direction == "NW"
+    assert result["structured_response"].wind_speed == 15.2
+    
+    # Test with tuple format (name, BaseModel)
+    agent_tuple = create_react_agent(
+        model, [get_weather], response_format=("weather_data", WeatherResponse)
+    )
+    
+    result_tuple = agent_tuple.invoke({
+        "messages": [HumanMessage(content="What's the weather like?")]
+    })
+    
+    # Verify the result contains structured_response
+    assert "structured_response" in result_tuple
+    assert isinstance(result_tuple["structured_response"], WeatherResponse)
+    assert result_tuple["structured_response"].temperature == 72.5
+    
+    # Test without structured response (backward compatibility)
+    model_no_struct = FakeToolCallingModel(tool_calls=[])
+    agent_no_struct = create_react_agent(model_no_struct, [get_weather])
+    
+    result_no_struct = agent_no_struct.invoke({
+        "messages": [HumanMessage(content="What's the weather like?")]
+    })
+    
+    # Verify no structured_response key when not using response_format
+    assert "structured_response" not in result_no_struct or result_no_struct.get("structured_response") is None
+
