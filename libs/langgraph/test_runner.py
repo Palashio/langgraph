@@ -252,10 +252,10 @@ def test_update_state_with_mixed_operations():
     assert len(result["messages"]) == 2
     
     # Update state: add a new message and remove an existing one
-    compiled_graph.update_state(config, values=[
+    compiled_graph.update_state(config, values={"messages": [
         AIMessage(content="New message", id="new"),
         RemoveMessage(id="first")
-    ])
+    ]})
     
     # Get current state
     current_state = compiled_graph.get_state(config)
@@ -299,4 +299,5 @@ def main():
 if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)
+
 
