@@ -653,8 +653,23 @@ def create_react_agent(
                     )
                 ]
             }
+        
+        # Handle structured output parsing when response_format is provided
+        # and there are no tool calls (indicating the agent is done)
+        result = {"messages": [response]}
+        if response_format is not None and not has_tool_calls:
+            try:
+                # Create a model with structured output for parsing the final response
+                structured_model = cast(BaseChatModel, model).with_structured_output(response_format)
+                structured_response = await structured_model.ainvoke(state["messages"] + [response], config)
+                result["structured_response"] = structured_response
+            except Exception:
+                # If structured output parsing fails, continue without it
+                # This ensures backwards compatibility and graceful degradation
+                pass
+        
         # We return a list, because this will get added to the existing list
-        return {"messages": [response]}
+        return result
 
     if not tool_calling_enabled:
         # Define a new graph
@@ -733,6 +748,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
