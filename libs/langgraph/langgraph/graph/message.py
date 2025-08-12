@@ -29,6 +29,8 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         A new list of messages with the messages from `right` merged into `left`.
         If a message in `right` has the same ID as a message in `left`, the
         message from `right` will replace the message from `left`.
+        If a message in `right` is a RemoveMessage, messages with matching IDs
+        will be removed from the result.
 
     Examples:
         ```pycon
@@ -42,6 +44,12 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         >>> msgs2 = [HumanMessage(content="Hello again", id="1")]
         >>> add_messages(msgs1, msgs2)
         [HumanMessage(content='Hello again', id='1')]
+
+        >>> from langchain_core.messages import RemoveMessage
+        >>> msgs1 = [HumanMessage(content="Hello", id="1"), AIMessage(content="Hi", id="2")]
+        >>> msgs2 = [RemoveMessage(id="1")]
+        >>> add_messages(msgs1, msgs2)
+        [AIMessage(content='Hi', id='2')]
 
         >>> from typing import Annotated
         >>> from typing_extensions import TypedDict
@@ -75,14 +83,30 @@ def add_messages(left: Messages, right: Messages) -> Messages:
     for m in right:
         if m.id is None:
             m.id = str(uuid.uuid4())
-    # merge
+    
+    # separate regular messages from RemoveMessage instances
+    regular_messages = []
+    remove_ids = set()
+    
+    for m in right:
+        if isinstance(m, RemoveMessage):
+            remove_ids.add(m.id)
+        else:
+            regular_messages.append(m)
+    
+    # merge regular messages
     left_idx_by_id = {m.id: i for i, m in enumerate(left)}
     merged = left.copy()
-    for m in right:
+    for m in regular_messages:
         if (existing_idx := left_idx_by_id.get(m.id)) is not None:
             merged[existing_idx] = m
         else:
             merged.append(m)
+    
+    # remove messages with IDs specified in RemoveMessage instances
+    if remove_ids:
+        merged = [m for m in merged if m.id not in remove_ids]
+    
     return merged
 
 
@@ -139,4 +163,5 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
 
