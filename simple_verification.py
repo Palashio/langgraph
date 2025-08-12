@@ -50,8 +50,10 @@ def verify_code_structure():
             print("❌ Missing structured output logic in sync or async function")
             return False
         
-        # Check workflow creation logic
-        if "AgentStateWithStructuredOutput if response_format is not None else AgentState" in content:
+        # Check workflow creation logic (more flexible check)
+        if "effective_state_schema = AgentStateWithStructuredOutput if response_format is not None else AgentState" in content:
+            print("✅ Workflow creation logic updated")
+        elif "AgentStateWithStructuredOutput if response_format is not None else AgentState" in content:
             print("✅ Workflow creation logic updated")
         else:
             print("❌ Workflow creation logic not updated")
@@ -184,4 +186,5 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
 
