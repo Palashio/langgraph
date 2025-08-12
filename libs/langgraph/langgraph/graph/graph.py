@@ -237,7 +237,7 @@ class Graph:
                 path_map = {name: name for name in get_args(rtn_type)}
         # find a name for the condition
         path = coerce_to_runnable(path, name=None, trace=True)
-        name = path.name or "condition"
+        name = getattr(path, 'name', None) or "condition"
         # validate the condition
         if name in self.branches[source]:
             raise ValueError(
@@ -517,5 +517,6 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
 
 
