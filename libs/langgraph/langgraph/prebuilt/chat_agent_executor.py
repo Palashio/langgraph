@@ -585,6 +585,20 @@ def create_react_agent(
     def call_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
         response = model_runnable.invoke(state, config)
+        
+        # Handle structured output extraction
+        structured_response = None
+        if response_format is not None:
+            # When using structured output, the response is the structured data
+            structured_response = response
+            # Create a regular AIMessage for the messages list
+            if hasattr(response, 'model_dump'):
+                # Convert structured response to a readable message
+                content = f"Structured response: {response.model_dump()}"
+            else:
+                content = f"Structured response: {response}"
+            response = AIMessage(content=content)
+        
         has_tool_calls = isinstance(response, AIMessage) and response.tool_calls
         all_tools_return_direct = (
             all(call["name"] in should_return_direct for call in response.tool_calls)
@@ -608,16 +622,23 @@ def create_react_agent(
                 and has_tool_calls
             )
         ):
-            return {
+            result = {
                 "messages": [
                     AIMessage(
-                        id=response.id,
+                        id=response.id if hasattr(response, 'id') else None,
                         content="Sorry, need more steps to process this request.",
                     )
                 ]
             }
+            if structured_response is not None:
+                result["structured_response"] = structured_response
+            return result
+        
         # We return a list, because this will get added to the existing list
-        return {"messages": [response]}
+        result = {"messages": [response]}
+        if structured_response is not None:
+            result["structured_response"] = structured_response
+        return result
 
     async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
@@ -733,6 +754,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
