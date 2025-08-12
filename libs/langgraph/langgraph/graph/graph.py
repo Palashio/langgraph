@@ -188,6 +188,7 @@ def _get_type_hints_safe(obj):
                 pass
         return {}
 
+
     def add_conditional_edges(
         self,
         source: str,
@@ -510,3 +511,4 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
