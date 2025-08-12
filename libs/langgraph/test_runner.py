@@ -219,7 +219,7 @@ def test_user_initiated_deletion_via_update_state():
     message_id = result["messages"][0].id
     
     # Delete the message via update_state
-    compiled_graph.update_state(config, values=[RemoveMessage(id=message_id)])
+    compiled_graph.update_state(config, values={"messages": [RemoveMessage(id=message_id)]})
     
     # Get current state
     current_state = compiled_graph.get_state(config)
@@ -299,3 +299,4 @@ def main():
 if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)
+
