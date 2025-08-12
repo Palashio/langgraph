@@ -563,7 +563,19 @@ def create_react_agent(
     preprocessor = _get_model_preprocessing_runnable(
         state_modifier, messages_modifier, store
     )
-    model_runnable = preprocessor | model
+    
+    # Handle structured output if response_format is provided
+    if response_format is not None:
+        if isinstance(response_format, tuple):
+            # Handle (name, BaseModel) tuple format
+            name, schema = response_format
+            structured_model = model.with_structured_output(schema, method="json_mode")
+        else:
+            # Handle single BaseModel format
+            structured_model = model.with_structured_output(response_format, method="json_mode")
+        model_runnable = preprocessor | structured_model
+    else:
+        model_runnable = preprocessor | model
 
     # If any of the tools are configured to return_directly after running,
     # our graph needs to check if these were called
@@ -721,6 +733,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
