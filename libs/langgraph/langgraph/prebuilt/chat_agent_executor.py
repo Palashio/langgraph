@@ -641,6 +641,41 @@ def create_react_agent(
         # We return a list, because this will get added to the existing list
         return {"messages": [response]}
 
+    # Define the function that generates structured output
+    def respond(state: StructuredAgentState, config: RunnableConfig) -> StructuredAgentState:
+        """Generate structured output using the response_format."""
+        if response_format is None:
+            raise ValueError("response_format must be provided when using respond node")
+        
+        # Create a model with structured output
+        structured_model = model.with_structured_output(response_format)
+        structured_preprocessor = _get_model_preprocessing_runnable(
+            state_modifier, messages_modifier, store
+        )
+        structured_model_runnable = structured_preprocessor | structured_model
+        
+        # Generate structured response
+        structured_response = structured_model_runnable.invoke(state, config)
+        
+        return {"structured_response": structured_response}
+
+    async def arespond(state: StructuredAgentState, config: RunnableConfig) -> StructuredAgentState:
+        """Generate structured output using the response_format (async version)."""
+        if response_format is None:
+            raise ValueError("response_format must be provided when using respond node")
+        
+        # Create a model with structured output
+        structured_model = model.with_structured_output(response_format)
+        structured_preprocessor = _get_model_preprocessing_runnable(
+            state_modifier, messages_modifier, store
+        )
+        structured_model_runnable = structured_preprocessor | structured_model
+        
+        # Generate structured response
+        structured_response = await structured_model_runnable.ainvoke(state, config)
+        
+        return {"structured_response": structured_response}
+
     if not tool_calling_enabled:
         # Define a new graph
         workflow = StateGraph(state_schema or AgentState)
@@ -718,6 +753,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
