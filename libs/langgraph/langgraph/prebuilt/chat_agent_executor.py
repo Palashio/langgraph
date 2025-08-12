@@ -1,4 +1,14 @@
-from typing import Any, Callable, Literal, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -203,16 +213,16 @@ def parse_structured_response(
     config: Optional[RunnableConfig] = None,
 ) -> BaseModel:
     """Parse unstructured text into a structured format using the LLM.
-    
+
     Args:
         model: The language model to use for parsing
         message_content: The unstructured text content to parse
         response_format: The Pydantic model class to parse into
         config: Optional runnable configuration
-        
+
     Returns:
         An instance of the response_format model with parsed data
-        
+
     Raises:
         ValueError: If parsing fails or required fields are missing
     """
@@ -241,8 +251,10 @@ JSON:"""
             # For chat models, create a structured output request
             structured_model = model.with_structured_output(response_format)
             parsing_message = [
-                SystemMessage(content="You are a data extraction assistant. Extract information from text and return it in the specified structured format."),
-                AIMessage(content=parsing_prompt)
+                SystemMessage(
+                    content="You are a data extraction assistant. Extract information from text and return it in the specified structured format."
+                ),
+                AIMessage(content=parsing_prompt),
             ]
             result = structured_model.invoke(parsing_message, config=config)
         else:
@@ -250,43 +262,48 @@ JSON:"""
             response = model.invoke(parsing_prompt, config=config)
             # Try to parse the response as JSON and create the model instance
             import json
-            if hasattr(response, 'content'):
+
+            if hasattr(response, "content"):
                 json_str = response.content
             else:
                 json_str = str(response)
-            
+
             # Extract JSON from the response if it's wrapped in other text
-            json_start = json_str.find('{')
-            json_end = json_str.rfind('}') + 1
+            json_start = json_str.find("{")
+            json_end = json_str.rfind("}") + 1
             if json_start >= 0 and json_end > json_start:
                 json_str = json_str[json_start:json_end]
-            
+
             parsed_data = json.loads(json_str)
             result = response_format(**parsed_data)
-            
+
         return result
-        
+
     except Exception as e:
         # If structured parsing fails, try a simpler approach
         try:
             # Simple regex-based extraction for weather data as fallback
             import re
-            
+
             # Extract temperature
-            temp_match = re.search(r'(\d+(?:\.\d+)?)\s*degrees?', message_content, re.IGNORECASE)
+            temp_match = re.search(
+                r"(\d+(?:\.\d+)?)\s*degrees?", message_content, re.IGNORECASE
+            )
             temperature = float(temp_match.group(1)) if temp_match else 0.0
-            
+
             # Extract wind speed
-            wind_speed_match = re.search(r'(\d+(?:\.\d+)?)\s*mph', message_content, re.IGNORECASE)
+            wind_speed_match = re.search(
+                r"(\d+(?:\.\d+)?)\s*mph", message_content, re.IGNORECASE
+            )
             wind_speed = float(wind_speed_match.group(1)) if wind_speed_match else 0.0
-            
+
             # Extract wind direction - be careful with the field name
             wind_dir_patterns = [
-                r'winds?\s+in\s+the\s+([A-Za-z-]+)\s+direction',
-                r'([A-Za-z-]+)\s+winds?',
-                r'winds?\s+([A-Za-z-]+)'
+                r"winds?\s+in\s+the\s+([A-Za-z-]+)\s+direction",
+                r"([A-Za-z-]+)\s+winds?",
+                r"winds?\s+([A-Za-z-]+)",
             ]
-            
+
             wind_direction = ""
             for pattern in wind_dir_patterns:
                 wind_dir_match = re.search(pattern, message_content, re.IGNORECASE)
@@ -294,27 +311,42 @@ JSON:"""
                     direction = wind_dir_match.group(1)
                     # Convert to abbreviated form and ensure correct spelling
                     direction_map = {
-                        'north-east': 'NE', 'northeast': 'NE', 'north east': 'NE',
-                        'south-east': 'SE', 'southeast': 'SE', 'south east': 'SE',
-                        'north-west': 'NW', 'northwest': 'NW', 'north west': 'NW',
-                        'south-west': 'SW', 'southwest': 'SW', 'south west': 'SW',
-                        'north': 'N', 'south': 'S', 'east': 'E', 'west': 'W'
+                        "north-east": "NE",
+                        "northeast": "NE",
+                        "north east": "NE",
+                        "south-east": "SE",
+                        "southeast": "SE",
+                        "south east": "SE",
+                        "north-west": "NW",
+                        "northwest": "NW",
+                        "north west": "NW",
+                        "south-west": "SW",
+                        "southwest": "SW",
+                        "south west": "SW",
+                        "north": "N",
+                        "south": "S",
+                        "east": "E",
+                        "west": "W",
                     }
-                    wind_direction = direction_map.get(direction.lower(), direction.upper())
+                    wind_direction = direction_map.get(
+                        direction.lower(), direction.upper()
+                    )
                     break
-            
+
             # Create the structured response with correct field name
             result_data = {
-                'temperature': temperature,
-                'wind_direction': wind_direction,  # Ensure correct spelling
-                'wind_speed': wind_speed
+                "temperature": temperature,
+                "wind_direction": wind_direction,  # Ensure correct spelling
+                "wind_speed": wind_speed,
             }
-            
+
             result = response_format(**result_data)
             return result
-            
+
         except Exception as fallback_error:
-            raise ValueError(f"Failed to parse structured response: {e}. Fallback also failed: {fallback_error}")
+            raise ValueError(
+                f"Failed to parse structured response: {e}. Fallback also failed: {fallback_error}"
+            )
 
 
 @deprecated_parameter("messages_modifier", "0.1.9", "state_modifier", removal="0.3.0")
@@ -791,37 +823,41 @@ def create_react_agent(
         """Generate structured response from the final AI message."""
         messages = state["messages"]
         last_message = messages[-1]
-        
+
         if not isinstance(last_message, AIMessage):
-            raise ValueError("Expected last message to be an AIMessage for structured response generation")
-        
+            raise ValueError(
+                "Expected last message to be an AIMessage for structured response generation"
+            )
+
         # Parse the structured response using the parsing function
         structured_response = parse_structured_response(
             model=model,
             message_content=last_message.content or "",
             response_format=response_format,
-            config=config
+            config=config,
         )
-        
+
         return {"structured_response": structured_response}
 
     async def arespond(state: AgentState, config: RunnableConfig) -> AgentState:
         """Async version of respond function."""
         messages = state["messages"]
         last_message = messages[-1]
-        
+
         if not isinstance(last_message, AIMessage):
-            raise ValueError("Expected last message to be an AIMessage for structured response generation")
-        
+            raise ValueError(
+                "Expected last message to be an AIMessage for structured response generation"
+            )
+
         # Parse the structured response using the parsing function
         # Note: parse_structured_response is synchronous, but we can still call it in async context
         structured_response = parse_structured_response(
             model=model,
             message_content=last_message.content or "",
             response_format=response_format,
-            config=config
+            config=config,
         )
-        
+
         return {"structured_response": structured_response}
 
     # Define a new graph
@@ -830,7 +866,7 @@ def create_react_agent(
     # Define the nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
     workflow.add_node("tools", tool_node)
-    
+
     # Add the respond node for structured output generation (only if response_format is specified)
     if response_format is not None:
         workflow.add_node("respond", RunnableCallable(respond, arespond))
@@ -885,13 +921,3 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
-
-
-
-
-
-
-
-
-
-
