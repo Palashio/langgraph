@@ -551,6 +551,33 @@ def create_react_agent(
         # get the tool functions wrapped in a tool class from the ToolNode
         tool_classes = list(tool_node.tools_by_name.values())
 
+    # Handle structured output if response_format is provided
+    structured_output_tool = None
+    if response_format is not None:
+        # Create a structured output tool from the response_format schema
+        def structured_output_func(**kwargs):
+            """Tool for structured output response."""
+            return "Structured response generated"
+        
+        structured_output_tool = StructuredTool.from_function(
+            func=structured_output_func,
+            name=response_format.__name__,
+            description=f"Use this tool to provide a structured response in {response_format.__name__} format",
+            args_schema=response_format,
+        )
+        
+        # Add the structured output tool to the tools list
+        tool_classes = list(tool_classes) + [structured_output_tool]
+        
+        # Update the tool node to include the structured output tool
+        if isinstance(tools, ToolExecutor):
+            tool_node = ToolNode(tool_classes)
+        elif isinstance(tools, ToolNode):
+            # Create a new ToolNode with the additional structured output tool
+            tool_node = ToolNode(tool_classes)
+        else:
+            tool_node = ToolNode(tool_classes)
+
     tool_calling_enabled = len(tool_classes) > 0
 
     if _should_bind_tools(model, tool_classes) and tool_calling_enabled:
@@ -718,6 +745,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
