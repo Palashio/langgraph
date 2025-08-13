@@ -314,7 +314,8 @@ class Graph:
                     for end in branch.ends.values():
                         if end not in self.nodes and end != END:
                             raise ValueError(
-                                f"At '{start}' node, '{cond}' branch found unknown target '{end}'"
+                                f"At '{start}' node, '{cond}' branch found "
+                                f"unknown target '{end}'"
                             )
                         all_targets.add(end)
                 else:
@@ -503,5 +504,6 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
 
 
