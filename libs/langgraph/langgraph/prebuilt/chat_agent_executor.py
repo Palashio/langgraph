@@ -744,7 +744,7 @@ def create_react_agent(
 
             # Return both messages and structured response
             return {"messages": messages, "structured_response": parsed_response}
-        except Exception as e:
+        except Exception:
             # If parsing fails, return messages without structured response
             # This maintains graceful degradation
             return {"messages": messages}
