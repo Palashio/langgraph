@@ -42,7 +42,7 @@ def test_multiple_interruptions_after_resumption():
         input_channels="input",
         output_channels="output",
         checkpointer=checkpointer,
-        interrupt_before_nodes=["node_two", "node_three"],
+        interrupt_before=["node_two", "node_three"],
     )
     
     config = {"configurable": {"thread_id": "test_multiple_interrupts"}}
@@ -90,3 +90,4 @@ def test_multiple_interruptions_after_resumption():
 
 if __name__ == "__main__":
     test_multiple_interruptions_after_resumption()
+
