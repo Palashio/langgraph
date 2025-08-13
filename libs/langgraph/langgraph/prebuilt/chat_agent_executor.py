@@ -761,6 +761,33 @@ def create_react_agent(
         if response_format and not has_tool_calls:
             # Agent is ending (no tool calls) and response_format is provided
             structured_response = _parse_structured_output(response)
+            
+            # Check if parsing failed (returned error dict)
+            if (isinstance(structured_response, dict) and 
+                structured_response.get("error") == "structured_output_parsing_failed"):
+                
+                # Check if we've already retried (to avoid infinite loops)
+                retry_count = getattr(state, '_parsing_retry_count', 0)
+                max_retries = 1  # Allow one retry attempt
+                
+                if retry_count < max_retries:
+                    # Create a clarification message and retry
+                    clarification_msg = AIMessage(
+                        content=f"I need to provide my response in the correct format. "
+                               f"Expected format: {structured_response.get('expected_format', 'structured data')}. "
+                               f"Let me try again with the proper structure.",
+                        id=response.id + "_retry"
+                    )
+                    
+                    # Add retry count to state for tracking
+                    result = {
+                        "messages": [response, clarification_msg],
+                        "_parsing_retry_count": retry_count + 1
+                    }
+                    return result
+                else:
+                    # Max retries reached, return the error in structured_response
+                    structured_response["retry_attempts"] = retry_count
         
         # We return a list, because this will get added to the existing list
         result = {"messages": [response]}
@@ -847,6 +874,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
