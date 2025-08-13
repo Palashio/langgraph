@@ -595,8 +595,35 @@ def create_react_agent(
                     )
                 ]
             }
+        
+        # Handle structured output parsing when response_format is provided and no tool calls
+        result = {"messages": [response]}
+        if response_format is not None and not has_tool_calls:
+            try:
+                # Parse the AI message content into the specified Pydantic model
+                if isinstance(response, AIMessage) and response.content:
+                    # Try to parse the content as JSON first, then as the Pydantic model
+                    import json
+                    try:
+                        # If content is already a dict/structured, use it directly
+                        if isinstance(response.content, str):
+                            parsed_content = json.loads(response.content)
+                        else:
+                            parsed_content = response.content
+                        structured_response = response_format(**parsed_content)
+                    except (json.JSONDecodeError, TypeError):
+                        # If JSON parsing fails, try to parse the content directly
+                        # This handles cases where the LLM returns structured data in other formats
+                        structured_response = response_format.model_validate_json(response.content)
+                    
+                    result["structured_response"] = structured_response
+            except Exception as e:
+                # If parsing fails, we'll add error handling in a later task
+                # For now, we continue without structured_response
+                pass
+        
         # We return a list, because this will get added to the existing list
-        return {"messages": [response]}
+        return result
 
     async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
@@ -712,6 +739,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
