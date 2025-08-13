@@ -730,6 +730,11 @@ def create_react_agent(
                 if isinstance(response, AIMessage) and response.content:
                     # Try to parse the content as JSON first, then as the Pydantic model
                     import json
+                    import logging
+                    
+                    structured_response = None
+                    parsing_error = None
+                    
                     try:
                         # If content is already a dict/structured, use it directly
                         if isinstance(response.content, str):
@@ -737,16 +742,41 @@ def create_react_agent(
                         else:
                             parsed_content = response.content
                         structured_response = response_format(**parsed_content)
-                    except (json.JSONDecodeError, TypeError):
-                        # If JSON parsing fails, try to parse the content directly
-                        # This handles cases where the LLM returns structured data in other formats
-                        structured_response = response_format.model_validate_json(response.content)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        parsing_error = f"JSON parsing failed: {str(e)}"
+                        try:
+                            # If JSON parsing fails, try to parse the content directly
+                            # This handles cases where the LLM returns structured data in other formats
+                            structured_response = response_format.model_validate_json(response.content)
+                            parsing_error = None  # Clear error if this succeeds
+                        except Exception as e2:
+                            parsing_error = f"Pydantic parsing failed: {str(e2)}"
+                    except Exception as e:
+                        parsing_error = f"Model instantiation failed: {str(e)}"
                     
-                    result["structured_response"] = structured_response
+                    if structured_response is not None:
+                        result["structured_response"] = structured_response
+                    else:
+                        # Log the parsing failure for debugging
+                        logging.warning(
+                            f"Failed to parse AI response into {response_format.__name__}: {parsing_error}. "
+                            f"Response content: {response.content[:200]}..."
+                        )
+                        # Add error information to the result for user awareness
+                        result["structured_response_error"] = {
+                            "error": parsing_error,
+                            "expected_format": response_format.__name__,
+                            "raw_content": response.content
+                        }
             except Exception as e:
-                # If parsing fails, we'll add error handling in a later task
-                # For now, we continue without structured_response
-                pass
+                # Catch-all for any unexpected errors during structured parsing
+                import logging
+                logging.error(f"Unexpected error during structured output parsing: {str(e)}")
+                result["structured_response_error"] = {
+                    "error": f"Unexpected parsing error: {str(e)}",
+                    "expected_format": response_format.__name__ if response_format else "Unknown",
+                    "raw_content": getattr(response, 'content', 'No content available')
+                }
         
         # We return a list, because this will get added to the existing list
         return result
@@ -830,6 +860,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
