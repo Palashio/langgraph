@@ -15,19 +15,19 @@ Messages = Union[list[MessageLikeRepresentation], MessageLikeRepresentation]
 
 class RemoveMessage:
     """A message-like object that represents a request to remove a message by ID.
-    
+
     This class is used to indicate that a message with a specific ID should be
     removed from the message list during state updates.
-    
+
     Args:
         id: The ID of the message to remove.
-        
+
     Examples:
         Remove a message by ID:
         >>> remove_msg = RemoveMessage(id="message-123")
         >>> # Use in update_state
         >>> graph.update_state(config, values=[remove_msg])
-        
+
         Remove a message from a node:
         >>> def delete_last_message(state):
         ...     if state:
@@ -35,18 +35,18 @@ class RemoveMessage:
         ...     return []
         >>> graph.add_node("delete_messages", delete_last_message)
     """
-    
+
     def __init__(self, *, id: str):
         """Initialize a RemoveMessage with the ID of the message to remove.
-        
+
         Args:
             id: The ID of the message to remove. Must be provided as a keyword argument.
         """
         self.id = id
-    
+
     def __repr__(self) -> str:
         return f"RemoveMessage(id={self.id!r})"
-    
+
     def __eq__(self, other) -> bool:
         if not isinstance(other, RemoveMessage):
             return False
@@ -58,7 +58,7 @@ def add_messages(left: Messages, right: Messages) -> Messages:
 
     By default, this ensures the state is "append-only", unless the
     new message has the same ID as an existing message.
-    
+
     If a RemoveMessage object is included in `right`, any message in `left`
     with a matching ID will be removed from the result.
 
@@ -116,7 +116,7 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         left = [left]
     if not isinstance(right, list):
         right = [right]
-    
+
     # separate RemoveMessage objects from regular messages
     remove_messages = []
     regular_messages = []
@@ -125,12 +125,14 @@ def add_messages(left: Messages, right: Messages) -> Messages:
             remove_messages.append(item)
         else:
             regular_messages.append(item)
-    
+
     # coerce to message (only for regular messages)
     left = [message_chunk_to_message(m) for m in convert_to_messages(left)]
     if regular_messages:
-        regular_messages = [message_chunk_to_message(m) for m in convert_to_messages(regular_messages)]
-    
+        regular_messages = [
+            message_chunk_to_message(m) for m in convert_to_messages(regular_messages)
+        ]
+
     # assign missing ids
     for m in left:
         if m.id is None:
@@ -138,13 +140,13 @@ def add_messages(left: Messages, right: Messages) -> Messages:
     for m in regular_messages:
         if m.id is None:
             m.id = str(uuid.uuid4())
-    
+
     # collect IDs to remove
     ids_to_remove = {rm.id for rm in remove_messages}
-    
+
     # filter out messages marked for removal
     merged = [m for m in left if m.id not in ids_to_remove]
-    
+
     # merge regular messages (update existing or append new)
     left_idx_by_id = {m.id: i for i, m in enumerate(merged)}
     for m in regular_messages:
@@ -154,7 +156,7 @@ def add_messages(left: Messages, right: Messages) -> Messages:
             merged.append(m)
             # update the index mapping for subsequent messages
             left_idx_by_id[m.id] = len(merged) - 1
-    
+
     return merged
 
 
@@ -211,5 +213,3 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
-
-
