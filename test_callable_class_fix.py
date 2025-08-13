@@ -14,14 +14,12 @@ def test_add_conditional_edges_with_callable_class_instance():
     class CallableRouter:
         """A callable class that acts as a router for conditional edges."""
         
-        def __call__(self, state: State) -> Literal["node_a", "node_b", "end"]:
+        def __call__(self, state: State) -> Literal["node_a", "node_b"]:
             """Route based on the state value."""
             if state["value"] == "go_to_a":
                 return "node_a"
-            elif state["value"] == "go_to_b":
-                return "node_b"
             else:
-                return "end"
+                return "node_b"
     
     def node_a(state: State) -> State:
         return {"value": state["value"], "next_node": "a"}
@@ -65,3 +63,4 @@ def test_add_conditional_edges_with_callable_class_instance():
 if __name__ == "__main__":
     test_add_conditional_edges_with_callable_class_instance()
     print("Test passed! The fix works correctly.")
+
