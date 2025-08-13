@@ -567,6 +567,37 @@ def create_react_agent(
     # our graph needs to check if these were called
     should_return_direct = {t.name for t in tool_classes if t.return_direct}
 
+    # Helper function to parse structured output
+    def _parse_structured_output(response: AIMessage) -> Optional[Any]:
+        """Parse the AI response into structured format if response_format is provided."""
+        if not response_format or not isinstance(response, AIMessage):
+            return None
+        
+        try:
+            # Try to parse the response content using the provided schema
+            if hasattr(response, 'content') and response.content:
+                # Attempt to parse the content as JSON and validate against the schema
+                import json
+                if isinstance(response.content, str):
+                    # Try to extract JSON from the response content
+                    content = response.content.strip()
+                    # Handle cases where the response might contain additional text
+                    if content.startswith('{') and content.endswith('}'):
+                        parsed_data = json.loads(content)
+                        return response_format(**parsed_data)
+                    else:
+                        # Try to find JSON within the content
+                        import re
+                        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                        if json_match:
+                            parsed_data = json.loads(json_match.group())
+                            return response_format(**parsed_data)
+        except Exception:
+            # If parsing fails, return None to fall back to original response
+            pass
+        
+        return None
+
     # Define the function that calls the model
     def call_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
@@ -719,6 +750,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
