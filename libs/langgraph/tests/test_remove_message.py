@@ -14,22 +14,22 @@ class TestRemoveMessage(unittest.TestCase):
     """Test suite for RemoveMessage functionality."""
 
 
-def test_add_messages_with_remove_message():
-    """Test that add_messages function handles RemoveMessage objects correctly."""
-    # Test basic removal
-    msgs1 = [
-        HumanMessage(content="Hello", id="1"),
-        AIMessage(content="Hi", id="2"),
-        HumanMessage(content="How are you?", id="3")
-    ]
-    msgs2 = [RemoveMessage(id="2")]
-    result = add_messages(msgs1, msgs2)
-    
-    assert len(result) == 2
-    assert result[0].content == "Hello"
-    assert result[0].id == "1"
-    assert result[1].content == "How are you?"
-    assert result[1].id == "3"
+    def test_add_messages_with_remove_message(self):
+        """Test that add_messages function handles RemoveMessage objects correctly."""
+        # Test basic removal
+        msgs1 = [
+            HumanMessage(content="Hello", id="1"),
+            AIMessage(content="Hi", id="2"),
+            HumanMessage(content="How are you?", id="3")
+        ]
+        msgs2 = [RemoveMessage(id="2")]
+        result = add_messages(msgs1, msgs2)
+        
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].content, "Hello")
+        self.assertEqual(result[0].id, "1")
+        self.assertEqual(result[1].content, "How are you?")
+        self.assertEqual(result[1].id, "3")
 
 
 def test_add_messages_remove_nonexistent():
@@ -308,4 +308,5 @@ def test_remove_message_with_state_snapshot():
     assert state_after.config == updated_config
     assert "source" in state_after.metadata
     assert state_after.metadata["source"] == "update"
+
 
