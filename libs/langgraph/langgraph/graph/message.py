@@ -10,6 +10,38 @@ from langchain_core.messages import (
 
 from langgraph.graph.state import StateGraph
 
+
+class RemoveMessage:
+    """Represents a request to remove a specific message by its ID.
+    
+    This class is used to indicate that a message with a specific ID should be
+    removed from the message list during the merge operation in add_messages.
+    
+    Args:
+        id: The ID of the message to remove.
+        
+    Examples:
+        Remove a message by ID:
+        >>> remove_msg = RemoveMessage(id="message_id_to_remove")
+        >>> add_messages(existing_messages, [remove_msg])
+        
+        Use in a graph node to delete messages:
+        >>> def delete_last_message(state):
+        ...     if state:
+        ...         return [RemoveMessage(id=state[-1].id)]
+        ...     return []
+    """
+    
+    def __init__(self, id: str) -> None:
+        self.id = id
+    
+    def __repr__(self) -> str:
+        return f"RemoveMessage(id={self.id!r})"
+    
+    def __eq__(self, other) -> bool:
+        return isinstance(other, RemoveMessage) and self.id == other.id
+
+
 Messages = Union[list[MessageLikeRepresentation], MessageLikeRepresentation]
 
 
@@ -138,3 +170,4 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
