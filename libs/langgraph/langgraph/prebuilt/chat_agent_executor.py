@@ -578,7 +578,7 @@ def create_react_agent(
     should_return_direct = {t.name for t in tool_classes if t.return_direct}
 
     # Helper function to parse structured output
-    def _parse_structured_output(response: AIMessage) -> Optional[Any]:
+    def _parse_structured_output(response: BaseMessage | str) -> Optional[Any]:
         """Parse the AI response into structured format if response_format is provided."""
         if not response_format or not isinstance(response, AIMessage):
             return None
@@ -779,3 +779,4 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
