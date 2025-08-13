@@ -75,10 +75,25 @@ def add_messages(left: Messages, right: Messages) -> Messages:
     for m in right:
         if m.id is None:
             m.id = str(uuid.uuid4())
-    # merge
+    
+    # handle RemoveMessage objects - filter out messages with matching IDs
+    ids_to_remove = set()
+    messages_to_merge = []
+    for m in right:
+        if isinstance(m, RemoveMessage):
+            if m.id is not None:
+                ids_to_remove.add(m.id)
+        else:
+            messages_to_merge.append(m)
+    
+    # filter out messages to be removed from left
+    if ids_to_remove:
+        left = [m for m in left if m.id not in ids_to_remove]
+    
+    # merge remaining messages using existing logic
     left_idx_by_id = {m.id: i for i, m in enumerate(left)}
     merged = left.copy()
-    for m in right:
+    for m in messages_to_merge:
         if (existing_idx := left_idx_by_id.get(m.id)) is not None:
             merged[existing_idx] = m
         else:
@@ -139,4 +154,5 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
 
