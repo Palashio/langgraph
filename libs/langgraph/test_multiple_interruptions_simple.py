@@ -28,6 +28,7 @@ def test_multiple_interruptions_bug():
     three = Channel.subscribe_to("output_two") | add_hundred | Channel.write_to("output")
     
     # Create app with interrupts after first two nodes
+    # Following the exact pattern from test_invoke_two_processes_in_out_interrupt
     memory = MemorySaver()
     app = Pregel(
         nodes={"one": one, "two": two, "three": three},
@@ -93,3 +94,4 @@ if __name__ == "__main__":
         print(f"\n💥 Test error: {e}")
         import traceback
         traceback.print_exc()
+
