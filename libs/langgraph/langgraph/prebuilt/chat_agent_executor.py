@@ -567,20 +567,20 @@ def create_react_agent(
     # Handle structured output tool creation
     structured_output_tool_name = None
     if response_format is not None:
-        # Create a structured output tool from the response_format BaseModel
-        structured_output_tool = model.with_structured_output(response_format)
+        # Create a tool that represents the structured output format
         structured_output_tool_name = f"structured_output_{response_format.__name__}"
         
-        # Create a tool wrapper that can be used in the tool binding
+        # Import the tool decorator
         from langchain_core.tools import tool
         
-        @tool(name=structured_output_tool_name)
-        def structured_output_tool_func(**kwargs) -> dict:
-            """Tool for generating structured output response."""
-            return kwargs
+        # Create a tool that accepts the structured output format
+        @tool(name=structured_output_tool_name, args_schema=response_format)
+        def structured_output_tool(**kwargs) -> str:
+            """Tool for generating structured output response based on the specified format."""
+            return "Structured output generated successfully"
         
         # Add the structured output tool to the available tools
-        tool_classes = list(tool_classes) + [structured_output_tool_func]
+        tool_classes = list(tool_classes) + [structured_output_tool]
         tool_calling_enabled = True
 
     if _should_bind_tools(model, tool_classes) and tool_calling_enabled:
@@ -748,6 +748,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
