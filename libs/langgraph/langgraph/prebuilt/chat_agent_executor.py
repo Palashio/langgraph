@@ -706,8 +706,19 @@ def create_react_agent(
 
         if isinstance(last_message, AIMessage) and last_message.content:
             try:
+                # Handle different content types - convert to string if needed
+                content = last_message.content
+                if isinstance(content, str):
+                    content_str = content
+                elif isinstance(content, list):
+                    # Convert list content to string representation
+                    content_str = str(content)
+                else:
+                    # Fallback for any other type
+                    content_str = str(content)
+                
                 structured_response = parse_structured_response(
-                    last_message.content, response_format
+                    content_str, response_format
                 )
                 # Return the structured response in the state
                 return {"structured_response": structured_response}
@@ -802,3 +813,4 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
