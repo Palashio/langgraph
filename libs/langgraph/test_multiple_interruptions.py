@@ -47,11 +47,11 @@ def test_multiple_interruptions_after_resumption():
     
     config = {"configurable": {"thread_id": "test_multiple_interrupts"}}
     
-    # Step 1: Start execution, should interrupt before node_two
+    # Step 1: Start execution, should interrupt after node_one
     print("Step 1: Starting execution...")
     result = app.invoke(1, config)
     print(f"Result after step 1: {result}")
-    assert result is None, "Should be interrupted before node_two"
+    assert result is None, "Should be interrupted after node_one"
     
     # Check state - should have completed node_one (1 + 1 = 2)
     checkpoint = checkpointer.get(config)
@@ -59,14 +59,14 @@ def test_multiple_interruptions_after_resumption():
     print(f"Channel values after step 1: {checkpoint['channel_values']}")
     assert checkpoint["channel_values"]["output_one"] == 2
     
-    # Step 2: Resume execution with None, should interrupt before node_three
+    # Step 2: Resume execution with None, should interrupt after node_two
     print("Step 2: Resuming execution...")
     result = app.invoke(None, config)
     print(f"Result after step 2: {result}")
     
     # This assertion will fail due to the bug - the second interruption is ignored
     try:
-        assert result is None, "Should be interrupted before node_three"
+        assert result is None, "Should be interrupted after node_two"
         print("SUCCESS: Second interruption worked correctly!")
     except AssertionError:
         print("BUG REPRODUCED: Second interruption was ignored!")
@@ -90,5 +90,6 @@ def test_multiple_interruptions_after_resumption():
 
 if __name__ == "__main__":
     test_multiple_interruptions_after_resumption()
+
 
 
