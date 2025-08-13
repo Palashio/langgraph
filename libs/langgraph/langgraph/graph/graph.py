@@ -125,12 +125,10 @@ class Graph:
         return self.edges
 
     @overload
-    def add_node(self, node: RunnableLike) -> None:
-        ...
+    def add_node(self, node: RunnableLike) -> None: ...
 
     @overload
-    def add_node(self, node: str, action: RunnableLike) -> None:
-        ...
+    def add_node(self, node: str, action: RunnableLike) -> None: ...
 
     def add_node(
         self, node: Union[str, RunnableLike], action: Optional[RunnableLike] = None
@@ -217,7 +215,7 @@ class Graph:
                     type_hints = get_type_hints(path.__call__)
                 except (TypeError, AttributeError):
                     type_hints = {}
-            
+
             if rtn_type := type_hints.get("return"):
                 if get_origin(rtn_type) is Literal:
                     path_map = {name: name for name in get_args(rtn_type)}
@@ -503,4 +501,3 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
-
