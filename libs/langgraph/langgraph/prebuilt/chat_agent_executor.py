@@ -2,6 +2,7 @@ from typing import Callable, Literal, Optional, Sequence, Type, TypeVar, Union, 
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
+from langchain_core.pydantic_v1 import BaseModel
 from langchain_core.runnables import (
     Runnable,
     RunnableBinding,
@@ -710,3 +711,4 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
