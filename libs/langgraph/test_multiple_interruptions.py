@@ -4,13 +4,9 @@ This test demonstrates the bug where subsequent interruptions are ignored
 after resuming execution with input=None.
 """
 
-from typing import TypedDict
+from langgraph.channels.last_value import LastValue
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import StateGraph, END
-
-
-class State(TypedDict):
-    value: int
+from langgraph.pregel import Channel, Pregel
 
 
 def test_multiple_interruptions_after_resumption():
@@ -20,29 +16,36 @@ def test_multiple_interruptions_after_resumption():
     after resuming execution with input=None.
     """
     # Create a simple graph with three nodes that can be interrupted
-    def node_one(state: State) -> State:
-        return {"value": state["value"] + 1}
+    def add_one(x: int) -> int:
+        print(f"node_one: {x} + 1 = {x + 1}")
+        return x + 1
     
-    def node_two(state: State) -> State:
-        return {"value": state["value"] + 10}
+    def add_ten(x: int) -> int:
+        print(f"node_two: {x} + 10 = {x + 10}")
+        return x + 10
     
-    def node_three(state: State) -> State:
-        return {"value": state["value"] + 100}
+    def add_hundred(x: int) -> int:
+        print(f"node_three: {x} + 100 = {x + 100}")
+        return x + 100
     
-    # Build the graph using StateGraph pattern from existing tests
-    workflow = StateGraph(State)
-    workflow.add_node("node_one", node_one)
-    workflow.add_node("node_two", node_two)
-    workflow.add_node("node_three", node_three)
-    workflow.set_entry_point("node_one")
-    workflow.add_edge("node_one", "node_two")
-    workflow.add_edge("node_two", "node_three")
-    workflow.add_edge("node_three", END)
+    # Build the graph using the existing pattern from other tests
+    one = Channel.subscribe_to("input") | add_one | Channel.write_to("output_one")
+    two = Channel.subscribe_to("output_one") | add_ten | Channel.write_to("output_two")
+    three = Channel.subscribe_to("output_two") | add_hundred | Channel.write_to("output")
     
     checkpointer = MemorySaver()
-    app = workflow.compile(
+    app = Pregel(
+        nodes={"node_one": one, "node_two": two, "node_three": three},
+        channels={
+            "input": LastValue(int),
+            "output_one": LastValue(int),
+            "output_two": LastValue(int),
+            "output": LastValue(int),
+        },
+        input_channels="input",
+        output_channels="output",
         checkpointer=checkpointer,
-        interrupt_before=["node_two", "node_three"],
+        interrupt_after_nodes=["node_one", "node_two"],
     )
     
     config = {"configurable": {"thread_id": "test_multiple_interrupts"}}
@@ -93,6 +96,7 @@ def test_multiple_interruptions_after_resumption():
 
 if __name__ == "__main__":
     test_multiple_interruptions_after_resumption()
+
 
 
 
