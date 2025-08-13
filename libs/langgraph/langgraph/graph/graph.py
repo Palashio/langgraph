@@ -211,7 +211,8 @@ class Graph:
             try:
                 type_hints = get_type_hints(path)
             except TypeError:
-                # Handle callable class instances by getting type hints from __call__ method
+                # Handle callable class instances by getting type hints from
+                # __call__ method
                 try:
                     type_hints = get_type_hints(path.__call__)
                 except (TypeError, AttributeError):
@@ -502,4 +503,5 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
 
