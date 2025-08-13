@@ -13,6 +13,46 @@ from langgraph.graph.state import StateGraph
 Messages = Union[list[MessageLikeRepresentation], MessageLikeRepresentation]
 
 
+class RemoveMessage:
+    """A message-like object that represents a request to remove a message by ID.
+    
+    This class is used to indicate that a message with a specific ID should be
+    removed from the message list during state updates.
+    
+    Args:
+        id: The ID of the message to remove.
+        
+    Examples:
+        Remove a message by ID:
+        >>> remove_msg = RemoveMessage(id="message-123")
+        >>> # Use in update_state
+        >>> graph.update_state(config, values=[remove_msg])
+        
+        Remove a message from a node:
+        >>> def delete_last_message(state):
+        ...     if state:
+        ...         return [RemoveMessage(id=state[-1].id)]
+        ...     return []
+        >>> graph.add_node("delete_messages", delete_last_message)
+    """
+    
+    def __init__(self, *, id: str):
+        """Initialize a RemoveMessage with the ID of the message to remove.
+        
+        Args:
+            id: The ID of the message to remove. Must be provided as a keyword argument.
+        """
+        self.id = id
+    
+    def __repr__(self) -> str:
+        return f"RemoveMessage(id={self.id!r})"
+    
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, RemoveMessage):
+            return False
+        return self.id == other.id
+
+
 def add_messages(left: Messages, right: Messages) -> Messages:
     """Merges two lists of messages, updating existing messages by ID.
 
@@ -138,3 +178,4 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
