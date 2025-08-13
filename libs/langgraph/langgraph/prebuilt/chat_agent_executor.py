@@ -695,6 +695,33 @@ def create_react_agent(
             debug=debug,
         )
 
+    # Define the respond node function for structured output parsing
+    def respond_node(state: AgentState) -> AgentState:
+        """Parse the final AI message into structured format when response_format is provided."""
+        if response_format is None:
+            return state
+        
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        if isinstance(last_message, AIMessage) and last_message.content:
+            try:
+                structured_response = parse_structured_response(
+                    last_message.content, response_format
+                )
+                # Return the structured response in the state
+                return {"structured_response": structured_response}
+            except Exception as e:
+                # If parsing fails, log the error but don't break the flow
+                # Return empty structured response
+                return {"structured_response": None}
+        
+        return {"structured_response": None}
+
+    async def arespond_node(state: AgentState) -> AgentState:
+        """Async version of respond_node."""
+        return respond_node(state)
+
     # Define the function that determines whether to continue or not
     def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
         messages = state["messages"]
@@ -759,6 +786,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
