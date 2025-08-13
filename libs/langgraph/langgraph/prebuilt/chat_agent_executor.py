@@ -568,33 +568,85 @@ def create_react_agent(
         if not response_format or not isinstance(response, AIMessage):
             return None
         
+        import json
+        from pydantic import ValidationError
+        
+        # Store parsing errors for detailed error reporting
+        parsing_errors = []
+        
         try:
             # Try to parse the response content as JSON first
-            import json
             if isinstance(response.content, str):
                 # Try to extract JSON from the content
                 content = response.content.strip()
                 if content.startswith('{') and content.endswith('}'):
-                    # Direct JSON parsing
-                    parsed_data = json.loads(content)
-                    return response_format(**parsed_data)
-                else:
-                    # Try to parse the content directly with the model
+                    try:
+                        # Direct JSON parsing
+                        parsed_data = json.loads(content)
+                        return response_format(**parsed_data)
+                    except (json.JSONDecodeError, ValidationError, TypeError) as e:
+                        parsing_errors.append(f"JSON parsing failed: {str(e)}")
+                
+                # Try to parse the content directly with the model
+                try:
                     return response_format.model_validate_json(content)
+                except (ValidationError, json.JSONDecodeError, TypeError) as e:
+                    parsing_errors.append(f"Direct model validation failed: {str(e)}")
             else:
                 # If content is not a string, try to use it directly
-                return response_format(**response.content)
-        except Exception:
-            # If parsing fails, try to use the content as-is with the model
-            try:
-                if isinstance(response.content, str):
-                    # Try to parse as a simple string and let Pydantic handle it
+                try:
+                    return response_format(**response.content)
+                except (ValidationError, TypeError) as e:
+                    parsing_errors.append(f"Direct content parsing failed: {str(e)}")
+        
+        except Exception as e:
+            parsing_errors.append(f"Unexpected error in primary parsing: {str(e)}")
+        
+        # Fallback parsing attempts
+        try:
+            if isinstance(response.content, str):
+                # Try to parse as a simple string and let Pydantic handle it
+                try:
                     return response_format.model_validate_json(f'"{response.content}"')
-                else:
+                except (ValidationError, json.JSONDecodeError) as e:
+                    parsing_errors.append(f"String fallback parsing failed: {str(e)}")
+                
+                # Try wrapping content in a generic field
+                try:
                     return response_format(**{"content": response.content})
-            except Exception:
-                # Return None if all parsing attempts fail
-                return None
+                except (ValidationError, TypeError) as e:
+                    parsing_errors.append(f"Content field fallback failed: {str(e)}")
+            else:
+                # Try wrapping non-string content
+                try:
+                    return response_format(**{"content": str(response.content)})
+                except (ValidationError, TypeError) as e:
+                    parsing_errors.append(f"Non-string content fallback failed: {str(e)}")
+        
+        except Exception as e:
+            parsing_errors.append(f"Unexpected error in fallback parsing: {str(e)}")
+        
+        # If all parsing attempts fail, return an error object
+        error_details = {
+            "error": "structured_output_parsing_failed",
+            "message": "Failed to parse AI response into the expected structured format",
+            "parsing_errors": parsing_errors,
+            "original_content": response.content,
+            "expected_format": response_format.__name__ if hasattr(response_format, '__name__') else str(response_format)
+        }
+        
+        # Try to create an error response using the response_format if it has an error field
+        try:
+            # Check if the response_format has common error fields
+            if hasattr(response_format, 'model_fields'):
+                fields = response_format.model_fields.keys()
+                if 'error' in fields or 'errors' in fields:
+                    return response_format(**error_details)
+        except Exception:
+            pass
+        
+        # Return the error details as a dict if we can't create a proper response_format object
+        return error_details
 
     # Define the function that calls the model
     def call_model(state: AgentState, config: RunnableConfig) -> AgentState:
@@ -768,6 +820,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
