@@ -1,9 +1,9 @@
 """Tests for RemoveMessage functionality in LangGraph."""
 
-import pytest
 from typing import Annotated, TypedDict
 
-from langchain_core.messages import AIMessage, HumanMessage, BaseMessage
+import pytest
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.message import MessageGraph, RemoveMessage, add_messages
