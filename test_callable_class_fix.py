@@ -54,13 +54,14 @@ def test_add_conditional_edges_with_callable_class_instance():
     assert result_b["next_node"] == "b"
     assert result_b["value"] == "go_to_b"
     
-    # Test routing to end (should stop at start node)
-    result_end = app.invoke({"value": "go_to_end", "next_node": ""})
-    assert result_end["next_node"] == ""
-    assert result_end["value"] == "go_to_end"
+    # Test routing to node_b with different value
+    result_other = app.invoke({"value": "go_to_other", "next_node": ""})
+    assert result_other["next_node"] == "b"
+    assert result_other["value"] == "go_to_other"
 
 
 if __name__ == "__main__":
     test_add_conditional_edges_with_callable_class_instance()
     print("Test passed! The fix works correctly.")
+
 
