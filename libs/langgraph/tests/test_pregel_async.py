@@ -4383,7 +4383,7 @@ async def test_in_one_fan_out_out_one_graph_state() -> None:
         docs: Annotated[list[str], operator.add]
 
     async def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     async def retriever_one(data: State) -> State:
         await asyncio.sleep(0.1)
@@ -5263,10 +5263,10 @@ async def test_in_one_fan_out_state_graph_waiting_edge() -> None:
         docs: Annotated[list[str], sorted_add]
 
     async def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     async def analyzer_one(data: State) -> State:
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     async def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -5350,10 +5350,10 @@ async def test_in_one_fan_out_state_graph_waiting_edge_via_branch(
         docs: Annotated[list[str], sorted_add]
 
     async def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     async def analyzer_one(data: State) -> State:
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     async def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -5544,11 +5544,11 @@ async def test_in_one_fan_out_state_graph_waiting_edge_plus_regular() -> None:
         docs: Annotated[list[str], sorted_add]
 
     async def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     async def analyzer_one(data: State) -> State:
         await asyncio.sleep(0.1)
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     async def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -5636,10 +5636,10 @@ async def test_in_one_fan_out_state_graph_waiting_edge_multiple() -> None:
         docs: Annotated[list[str], sorted_add]
 
     async def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     async def analyzer_one(data: State) -> State:
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     async def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -5718,13 +5718,13 @@ async def test_in_one_fan_out_state_graph_waiting_edge_multiple_cond_edge() -> N
         docs: Annotated[list[str], sorted_add]
 
     async def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     async def retriever_picker(data: State) -> list[str]:
         return ["analyzer_one", "retriever_two"]
 
     async def analyzer_one(data: State) -> State:
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     async def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}

@@ -134,8 +134,7 @@ class Graph:
         node: RunnableLike,
         *,
         metadata: Optional[dict[str, Any]] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def add_node(
@@ -144,8 +143,7 @@ class Graph:
         action: RunnableLike,
         *,
         metadata: Optional[dict[str, Any]] = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def add_node(
         self,
@@ -242,7 +240,7 @@ class Graph:
         # validate the condition
         if name in self.branches[source]:
             raise ValueError(
-                f"Branch with name `{path.name}` already exists for node " f"`{source}`"
+                f"Branch with name `{path.name}` already exists for node `{source}`"
             )
         # save it
         self.branches[source][name] = Branch(path, path_map, then)

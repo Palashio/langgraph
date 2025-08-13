@@ -174,12 +174,12 @@ class PregelNode(RunnableBindingBase):
         return [(k, v) for k, v in super().__repr_args__() if k != "bound"]
 
     def join(self, channels: Sequence[str]) -> PregelNode:
-        assert isinstance(channels, list) or isinstance(
-            channels, tuple
-        ), "channels must be a list or tuple"
-        assert isinstance(
-            self.channels, dict
-        ), "all channels must be named when using .join()"
+        assert isinstance(channels, list) or isinstance(channels, tuple), (
+            "channels must be a list or tuple"
+        )
+        assert isinstance(self.channels, dict), (
+            "all channels must be named when using .join()"
+        )
         return PregelNode(
             channels={
                 **self.channels,
