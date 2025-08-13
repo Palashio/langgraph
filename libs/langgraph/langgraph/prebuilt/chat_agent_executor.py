@@ -102,28 +102,28 @@ def parse_structured_response(
     message_content: str, response_format: Type[BaseModel]
 ) -> BaseModel:
     """Parse the AI message content into a structured format using the provided model.
-    
+
     Args:
         message_content: The content of the AI message to parse
         response_format: The Pydantic model class to parse the content into
-        
+
     Returns:
         An instance of the response_format model with parsed data
-        
+
     Raises:
         ValueError: If the content cannot be parsed into the specified format
     """
     try:
         # Try to parse the content as JSON first
         import json
-        
+
         # Handle cases where the content might be wrapped in markdown code blocks
         content = message_content.strip()
         if content.startswith("```json") and content.endswith("```"):
             content = content[7:-3].strip()
         elif content.startswith("```") and content.endswith("```"):
             content = content[3:-3].strip()
-        
+
         # Try parsing as JSON
         try:
             parsed_data = json.loads(content)
@@ -131,7 +131,7 @@ def parse_structured_response(
         except (json.JSONDecodeError, TypeError):
             # If JSON parsing fails, try to parse directly with the model
             return response_format.parse_raw(content)
-            
+
     except Exception as e:
         # If all parsing attempts fail, raise a descriptive error
         raise ValueError(
@@ -700,10 +700,10 @@ def create_react_agent(
         """Parse the final AI message into structured format when response_format is provided."""
         if response_format is None:
             return state
-        
+
         messages = state["messages"]
         last_message = messages[-1]
-        
+
         if isinstance(last_message, AIMessage) and last_message.content:
             try:
                 structured_response = parse_structured_response(
@@ -715,7 +715,7 @@ def create_react_agent(
                 # If parsing fails, log the error but don't break the flow
                 # Return empty structured response
                 return {"structured_response": None}
-        
+
         return {"structured_response": None}
 
     async def arespond_node(state: AgentState) -> AgentState:
@@ -747,7 +747,7 @@ def create_react_agent(
     # Define the two nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
     workflow.add_node("tools", tool_node)
-    
+
     # Add respond node when response_format is provided
     if response_format is not None:
         workflow.add_node("respond", RunnableCallable(respond_node, arespond_node))
@@ -764,7 +764,7 @@ def create_react_agent(
         # Next, we pass in the function that will determine which node is called next.
         should_continue,
     )
-    
+
     # Add edge from respond node to end when response_format is provided
     if response_format is not None:
         workflow.add_edge("respond", "__end__")
@@ -802,12 +802,3 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
-
-
-
-
-
-
-
-
-
