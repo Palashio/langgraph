@@ -19,6 +19,9 @@ def add_messages(left: Messages, right: Messages) -> Messages:
 
     By default, this ensures the state is "append-only", unless the
     new message has the same ID as an existing message.
+    
+    If a RemoveMessage is encountered in the right list, messages with
+    matching IDs will be removed from the left list.
 
     Args:
         left: The base list of messages.
@@ -29,10 +32,12 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         A new list of messages with the messages from `right` merged into `left`.
         If a message in `right` has the same ID as a message in `left`, the
         message from `right` will replace the message from `left`.
+        If a RemoveMessage is in `right`, messages with matching IDs will be
+        removed from the result.
 
     Examples:
         ```pycon
-        >>> from langchain_core.messages import AIMessage, HumanMessage
+        >>> from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
         >>> msgs1 = [HumanMessage(content="Hello", id="1")]
         >>> msgs2 = [AIMessage(content="Hi there!", id="2")]
         >>> add_messages(msgs1, msgs2)
@@ -42,6 +47,11 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         >>> msgs2 = [HumanMessage(content="Hello again", id="1")]
         >>> add_messages(msgs1, msgs2)
         [HumanMessage(content='Hello again', id='1')]
+
+        >>> msgs1 = [HumanMessage(content="Hello", id="1"), AIMessage(content="Hi", id="2")]
+        >>> msgs2 = [RemoveMessage(id="1")]
+        >>> add_messages(msgs1, msgs2)
+        [AIMessage(content='Hi', id='2')]
 
         >>> from typing import Annotated
         >>> from typing_extensions import TypedDict
@@ -139,4 +149,5 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
 
