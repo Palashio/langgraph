@@ -402,7 +402,7 @@ class RunnableSeq(Runnable):
             for i, step in enumerate(self.steps):
                 # mark each step as a child run
                 config = patch_config(
-                    config, callbacks=run_manager.get_child(f"seq:step:{i+1}")
+                    config, callbacks=run_manager.get_child(f"seq:step:{i + 1}")
                 )
                 if i == 0:
                     input = step.invoke(input, config, **kwargs)
@@ -439,7 +439,7 @@ class RunnableSeq(Runnable):
             for i, step in enumerate(self.steps):
                 # mark each step as a child run
                 config = patch_config(
-                    config, callbacks=run_manager.get_child(f"seq:step:{i+1}")
+                    config, callbacks=run_manager.get_child(f"seq:step:{i + 1}")
                 )
                 if i == 0:
                     input = await step.ainvoke(input, config, **kwargs)
@@ -479,7 +479,7 @@ class RunnableSeq(Runnable):
             for idx, step in enumerate(self.steps):
                 config = patch_config(
                     config,
-                    callbacks=run_manager.get_child(f"seq:step:{idx+1}"),
+                    callbacks=run_manager.get_child(f"seq:step:{idx + 1}"),
                 )
                 if idx == 0:
                     iterator = step.stream(input, config, **kwargs)
@@ -543,7 +543,7 @@ class RunnableSeq(Runnable):
                 for idx, step in enumerate(self.steps):
                     config = patch_config(
                         config,
-                        callbacks=run_manager.get_child(f"seq:step:{idx+1}"),
+                        callbacks=run_manager.get_child(f"seq:step:{idx + 1}"),
                     )
                     if idx == 0:
                         aiterator = step.astream(input, config, **kwargs)

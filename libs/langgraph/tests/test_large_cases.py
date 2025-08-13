@@ -2829,9 +2829,9 @@ def test_state_graph_packets(
     # Define decision-making logic
     def should_continue(data: AgentState) -> str:
         assert isinstance(data["session"], httpx.Client)
-        assert (
-            data["something_extra"] == "hi there"
-        ), "nodes can pass extra data to their cond edges, which isn't saved in state"
+        assert data["something_extra"] == "hi there", (
+            "nodes can pass extra data to their cond edges, which isn't saved in state"
+        )
         # Logic to decide whether to continue in the loop or exit
         if tool_calls := data["messages"][-1].tool_calls:
             return [Send("tools", tool_call) for tool_call in tool_calls]
@@ -5480,7 +5480,7 @@ def test_in_one_fan_out_out_one_graph_state() -> None:
         docs: Annotated[list[str], sorted_add]
 
     def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     def retriever_one(data: State) -> State:
         # timer ensures stream output order is stable
