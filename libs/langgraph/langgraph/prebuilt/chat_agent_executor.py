@@ -363,6 +363,32 @@ def create_react_agent(
         The weather in San Francisco is currently sunny. If you need any more details or have other questions, feel free to ask!
         ```
 
+        Use with structured output parsing:
+
+        ```pycon
+        >>> from pydantic import BaseModel
+        >>> from langchain_openai import ChatOpenAI
+        >>> from langgraph.prebuilt import create_react_agent
+
+        >>> class WeatherResponse(BaseModel):
+        ...     temperature: float
+        ...     wind_direction: str
+        ...     wind_speed: float
+        ...     description: str
+
+        >>> def get_weather(location: str) -> str:
+        ...     '''Return the weather forecast for the specified location.'''
+        ...     return f"Temperature: 72°F, Wind: 5mph from the west, sunny skies in {location}"
+
+        >>> tools = [get_weather]
+        >>> model = ChatOpenAI(model="gpt-4o")
+        >>> graph = create_react_agent(model, tools, response_format=WeatherResponse)
+        >>> inputs = {"messages": [("user", "What's the weather in San Francisco? Please format as structured data.")]}
+        >>> result = graph.invoke(inputs)
+        >>> print(result["structured_response"])
+        WeatherResponse(temperature=72.0, wind_direction='west', wind_speed=5.0, description='sunny skies')
+        ```
+
         Add a more complex prompt for the LLM:
 
         ```pycon
@@ -774,6 +800,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
