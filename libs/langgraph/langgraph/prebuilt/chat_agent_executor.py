@@ -677,7 +677,7 @@ def create_react_agent(
             return "tools"
 
     # Define a new graph
-    workflow = StateGraph(state_schema or AgentState)
+    workflow = StateGraph(effective_state_schema)
 
     # Define the two nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
@@ -729,6 +729,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
