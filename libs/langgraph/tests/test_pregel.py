@@ -7686,8 +7686,9 @@ def test_multiple_interrupts_after_resume():
     were ignored after resuming execution with stream(None, config).
     """
     from typing import TypedDict
-    from langgraph.graph.state import StateGraph
+
     from langgraph.checkpoint.memory import MemorySaver
+    from langgraph.graph.state import StateGraph
     
     class State(TypedDict):
         value: int
