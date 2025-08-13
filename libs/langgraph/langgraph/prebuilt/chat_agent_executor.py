@@ -1,4 +1,14 @@
-from typing import Any, Callable, Literal, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -572,30 +582,32 @@ def create_react_agent(
         """Parse the AI response into structured format if response_format is provided."""
         if not response_format or not isinstance(response, AIMessage):
             return None
-        
+
         try:
             # Try to parse the response content using the provided schema
-            if hasattr(response, 'content') and response.content:
+            if hasattr(response, "content") and response.content:
                 # Attempt to parse the content as JSON and validate against the schema
                 import json
+
                 if isinstance(response.content, str):
                     # Try to extract JSON from the response content
                     content = response.content.strip()
                     # Handle cases where the response might contain additional text
-                    if content.startswith('{') and content.endswith('}'):
+                    if content.startswith("{") and content.endswith("}"):
                         parsed_data = json.loads(content)
                         return response_format(**parsed_data)
                     else:
                         # Try to find JSON within the content
                         import re
-                        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+
+                        json_match = re.search(r"\{.*\}", content, re.DOTALL)
                         if json_match:
                             parsed_data = json.loads(json_match.group())
                             return response_format(**parsed_data)
         except Exception:
             # If parsing fails, return None to fall back to original response
             pass
-        
+
         return None
 
     # Define the function that calls the model
@@ -635,13 +647,13 @@ def create_react_agent(
             }
         # We return a list, because this will get added to the existing list
         result = {"messages": [response]}
-        
+
         # If response_format is provided and there are no tool calls, parse structured output
         if response_format and not has_tool_calls:
             structured_output = _parse_structured_output(response)
             if structured_output is not None:
                 result["structured_response"] = structured_output
-        
+
         return result
 
     async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
@@ -680,13 +692,13 @@ def create_react_agent(
             }
         # We return a list, because this will get added to the existing list
         result = {"messages": [response]}
-        
+
         # If response_format is provided and there are no tool calls, parse structured output
         if response_format and not has_tool_calls:
             structured_output = _parse_structured_output(response)
             if structured_output is not None:
                 result["structured_response"] = structured_output
-        
+
         return result
 
     if not tool_calling_enabled:
@@ -767,12 +779,3 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
-
-
-
-
-
-
-
-
-
