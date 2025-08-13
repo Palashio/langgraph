@@ -1,6 +1,6 @@
 """Tests for RemoveMessage functionality in LangGraph."""
 
-import pytest
+import unittest
 from typing import Annotated
 from langchain_core.messages import AIMessage, HumanMessage, BaseMessage
 
@@ -8,7 +8,10 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
 from langgraph.graph.message import MessageGraph, RemoveMessage, add_messages, MessagesState
 from langgraph.pregel import StateSnapshot
-from tests.any_str import AnyStr
+
+
+class TestRemoveMessage(unittest.TestCase):
+    """Test suite for RemoveMessage functionality."""
 
 
 def test_add_messages_with_remove_message():
@@ -305,3 +308,4 @@ def test_remove_message_with_state_snapshot():
     assert state_after.config == updated_config
     assert "source" in state_after.metadata
     assert state_after.metadata["source"] == "update"
+
