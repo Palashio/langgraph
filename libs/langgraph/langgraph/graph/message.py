@@ -38,6 +38,19 @@ class RemoveMessage:
     
     def __eq__(self, other) -> bool:
         return isinstance(other, RemoveMessage) and self.id == other.id
+    
+    def __reduce__(self):
+        """Support for pickle serialization."""
+        return (self.__class__, (self.id,))
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {"__type__": "RemoveMessage", "id": self.id}
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> "RemoveMessage":
+        """Create from dictionary for JSON deserialization."""
+        return cls(id=data["id"])
 
 
 def add_messages(left: Messages, right: Messages) -> Messages:
@@ -195,5 +208,6 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
 
 
