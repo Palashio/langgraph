@@ -42,7 +42,11 @@ class RemoveMessage:
         return isinstance(other, RemoveMessage) and self.id == other.id
 
 
-Messages = Union[list[MessageLikeRepresentation], MessageLikeRepresentation]
+Messages = Union[
+    list[Union[MessageLikeRepresentation, RemoveMessage]], 
+    MessageLikeRepresentation, 
+    RemoveMessage
+]
 
 
 def add_messages(left: Messages, right: Messages) -> Messages:
@@ -191,5 +195,6 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
 
 
