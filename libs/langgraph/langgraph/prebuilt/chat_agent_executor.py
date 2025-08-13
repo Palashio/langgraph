@@ -711,7 +711,7 @@ def create_react_agent(
                 )
                 # Return the structured response in the state
                 return {"structured_response": structured_response}
-            except Exception as e:
+            except Exception:
                 # If parsing fails, log the error but don't break the flow
                 # Return empty structured response
                 return {"structured_response": None}
