@@ -701,6 +701,42 @@ def create_react_agent(
         # Otherwise if there are other tool calls, we continue to tools
         return "tools"
 
+    # Define the respond node function for structured output
+    def respond_node(state: AgentState) -> dict:
+        """Extract structured response from tool call arguments and create structured output."""
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
+            # This shouldn't happen if routing is correct, but handle gracefully
+            return {"messages": messages}
+        
+        # Find the structured output tool call
+        structured_tool_call = None
+        for tool_call in last_message.tool_calls:
+            if tool_call["name"] == structured_output_tool_name:
+                structured_tool_call = tool_call
+                break
+        
+        if structured_tool_call is None:
+            # This shouldn't happen if routing is correct, but handle gracefully
+            return {"messages": messages}
+        
+        # Extract the arguments from the tool call and create the structured output object
+        try:
+            tool_args = structured_tool_call["args"]
+            parsed_response = response_format(**tool_args)
+            
+            # Return both messages and structured response
+            return {
+                "messages": messages,
+                "structured_response": parsed_response
+            }
+        except Exception as e:
+            # If parsing fails, return messages without structured response
+            # This maintains graceful degradation
+            return {"messages": messages}
+
     # Define a new graph
     workflow = StateGraph(effective_state_schema)
 
@@ -754,6 +790,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
