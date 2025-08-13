@@ -540,6 +540,17 @@ def create_react_agent(
         ):
             raise ValueError(f"Missing required key(s) {missing_keys} in state_schema")
 
+    # Select appropriate state schema based on response_format
+    if response_format is not None:
+        # When response_format is provided, use the extended state schema
+        effective_state_schema = state_schema or AgentStateWithStructuredOutput
+        # Ensure the provided state_schema includes structured_response if response_format is used
+        if state_schema is not None and "structured_response" not in state_schema.__annotations__:
+            raise ValueError("When using response_format, state_schema must include 'structured_response' field")
+    else:
+        # When response_format is None, use the original behavior
+        effective_state_schema = state_schema or AgentState
+
     if isinstance(tools, ToolExecutor):
         tool_classes: Sequence[BaseTool] = tools.tools
         tool_node = ToolNode(tool_classes)
@@ -718,6 +729,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
