@@ -506,4 +506,3 @@ class CompiledGraph(Pregel):
         return graph
 
 
-
