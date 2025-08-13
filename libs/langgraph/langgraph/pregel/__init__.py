@@ -1440,10 +1440,6 @@ class Pregel(
                 else:
                     # no input is taken as signal to proceed past previous interrupt
                     checkpoint = copy_checkpoint(checkpoint)
-                    for k in self.stream_channels_list:
-                        if k in checkpoint["channel_versions"]:
-                            version = checkpoint["channel_versions"][k]
-                            checkpoint["versions_seen"][INTERRUPT][k] = version
 
                 # Similarly to Bulk Synchronous Parallel / Pregel model
                 # computation proceeds in steps, while there are channel updates
