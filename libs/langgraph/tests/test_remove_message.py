@@ -60,57 +60,55 @@ class TestRemoveMessage(unittest.TestCase):
         self.assertEqual(result[1].id, "3")
 
 
-def test_add_messages_mixed_operations():
-    """Test mixed add and remove operations."""
-    msgs1 = [
-        HumanMessage(content="Hello", id="1"),
-        AIMessage(content="Hi", id="2")
-    ]
-    msgs2 = [
-        RemoveMessage(id="1"),
-        AIMessage(content="New message", id="3"),
-        HumanMessage(content="Updated", id="2")  # This should replace existing id="2"
-    ]
-    result = add_messages(msgs1, msgs2)
-    
-    assert len(result) == 2
-    assert result[0].content == "Updated"  # Replaced message with id="2"
-    assert result[0].id == "2"
-    assert result[1].content == "New message"  # New message with id="3"
-    assert result[1].id == "3"
+    def test_add_messages_mixed_operations(self):
+        """Test mixed add and remove operations."""
+        msgs1 = [
+            HumanMessage(content="Hello", id="1"),
+            AIMessage(content="Hi", id="2")
+        ]
+        msgs2 = [
+            RemoveMessage(id="1"),
+            AIMessage(content="New message", id="3"),
+            HumanMessage(content="Updated", id="2")  # This should replace existing id="2"
+        ]
+        result = add_messages(msgs1, msgs2)
+        
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].content, "Updated")  # Replaced message with id="2"
+        self.assertEqual(result[0].id, "2")
+        self.assertEqual(result[1].content, "New message")  # New message with id="3"
+        self.assertEqual(result[1].id, "3")
 
+    def test_add_messages_backward_compatibility(self):
+        """Test that existing message merging and replacement behavior remains unchanged."""
+        # Test basic appending
+        msgs1 = [HumanMessage(content="Hello", id="1")]
+        msgs2 = [AIMessage(content="Hi there!", id="2")]
+        result = add_messages(msgs1, msgs2)
+        
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].content, "Hello")
+        self.assertEqual(result[1].content, "Hi there!")
+        
+        # Test replacement by ID
+        msgs1 = [HumanMessage(content="Hello", id="1")]
+        msgs2 = [HumanMessage(content="Hello again", id="1")]
+        result = add_messages(msgs1, msgs2)
+        
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].content, "Hello again")
+        self.assertEqual(result[0].id, "1")
 
-def test_add_messages_backward_compatibility():
-    """Test that existing message merging and replacement behavior remains unchanged."""
-    # Test basic appending
-    msgs1 = [HumanMessage(content="Hello", id="1")]
-    msgs2 = [AIMessage(content="Hi there!", id="2")]
-    result = add_messages(msgs1, msgs2)
-    
-    assert len(result) == 2
-    assert result[0].content == "Hello"
-    assert result[1].content == "Hi there!"
-    
-    # Test replacement by ID
-    msgs1 = [HumanMessage(content="Hello", id="1")]
-    msgs2 = [HumanMessage(content="Hello again", id="1")]
-    result = add_messages(msgs1, msgs2)
-    
-    assert len(result) == 1
-    assert result[0].content == "Hello again"
-    assert result[0].id == "1"
-
-
-def test_remove_message_class():
-    """Test RemoveMessage class methods."""
-    rm1 = RemoveMessage(id="test")
-    rm2 = RemoveMessage(id="test")
-    rm3 = RemoveMessage(id="other")
-    
-    assert rm1 == rm2
-    assert rm1 != rm3
-    assert str(rm1) == "RemoveMessage(id='test')"
-    assert rm1.id == "test"
+    def test_remove_message_class(self):
+        """Test RemoveMessage class methods."""
+        rm1 = RemoveMessage(id="test")
+        rm2 = RemoveMessage(id="test")
+        rm3 = RemoveMessage(id="other")
+        
+        self.assertEqual(rm1, rm2)
+        self.assertNotEqual(rm1, rm3)
+        self.assertEqual(str(rm1), "RemoveMessage(id='test')")
+        self.assertEqual(rm1.id, "test")
 
 
 def test_message_deletion_via_update_state():
@@ -307,6 +305,7 @@ def test_remove_message_with_state_snapshot():
     assert state_after.config == updated_config
     assert "source" in state_after.metadata
     assert state_after.metadata["source"] == "update"
+
 
 
 
