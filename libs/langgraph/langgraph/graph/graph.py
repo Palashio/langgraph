@@ -125,12 +125,10 @@ class Graph:
         return self.edges
 
     @overload
-    def add_node(self, node: RunnableLike) -> None:
-        ...
+    def add_node(self, node: RunnableLike) -> None: ...
 
     @overload
-    def add_node(self, node: str, action: RunnableLike) -> None:
-        ...
+    def add_node(self, node: str, action: RunnableLike) -> None: ...
 
     def add_node(
         self, node: Union[str, RunnableLike], action: Optional[RunnableLike] = None
@@ -212,7 +210,7 @@ class Graph:
             rtn_type = None
             try:
                 # First attempt: try to get type hints from __call__ method if it's a callable instance
-                if hasattr(path, '__call__'):
+                if hasattr(path, "__call__"):
                     rtn_type = get_type_hints(path.__call__).get("return")
                 # Fall back to getting type hints from path directly
                 if rtn_type is None:
@@ -220,7 +218,7 @@ class Graph:
             except TypeError:
                 # Gracefully handle TypeError by continuing without setting path_map
                 rtn_type = None
-            
+
             if rtn_type:
                 if get_origin(rtn_type) is Literal:
                     path_map = {name: name for name in get_args(rtn_type)}
@@ -230,7 +228,7 @@ class Graph:
         # validate the condition
         if name in self.branches[source]:
             raise ValueError(
-                f"Branch with name `{path.name}` already exists for node " f"`{source}`"
+                f"Branch with name `{path.name}` already exists for node `{source}`"
             )
         # save it
         self.branches[source][name] = Branch(path, path_map, then)
@@ -506,6 +504,3 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
-
-
-

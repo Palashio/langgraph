@@ -3672,9 +3672,9 @@ def test_state_graph_packets(serde: SerializerProtocol) -> None:
 
     # Define decision-making logic
     def should_continue(data: AgentState) -> str:
-        assert (
-            data["something_extra"] == "hi there"
-        ), "nodes can pass extra data to their cond edges, which isn't saved in state"
+        assert data["something_extra"] == "hi there", (
+            "nodes can pass extra data to their cond edges, which isn't saved in state"
+        )
         # Logic to decide whether to continue in the loop or exit
         if tool_calls := data["messages"][-1].tool_calls:
             return [Send("tools", tool_call) for tool_call in tool_calls]
@@ -5690,7 +5690,7 @@ def test_in_one_fan_out_out_one_graph_state() -> None:
         docs: Annotated[list[str], sorted_add]
 
     def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     def retriever_one(data: State) -> State:
         # timer ensures stream output order is stable
@@ -6561,10 +6561,10 @@ def test_in_one_fan_out_state_graph_waiting_edge(snapshot: SnapshotAssertion) ->
 
     @workflow.add_node
     def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     def analyzer_one(data: State) -> State:
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -6679,10 +6679,10 @@ def test_in_one_fan_out_state_graph_waiting_edge_via_branch(
         docs: Annotated[list[str], sorted_add]
 
     def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     def analyzer_one(data: State) -> State:
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -6868,11 +6868,11 @@ def test_in_one_fan_out_state_graph_waiting_edge_plus_regular() -> None:
         docs: Annotated[list[str], sorted_add]
 
     def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     def analyzer_one(data: State) -> State:
         time.sleep(0.1)
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -6957,10 +6957,10 @@ def test_in_one_fan_out_state_graph_waiting_edge_multiple() -> None:
         docs: Annotated[list[str], sorted_add]
 
     def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     def analyzer_one(data: State) -> State:
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -7039,13 +7039,13 @@ def test_in_one_fan_out_state_graph_waiting_edge_multiple_cond_edge() -> None:
         docs: Annotated[list[str], sorted_add]
 
     def rewrite_query(data: State) -> State:
-        return {"query": f'query: {data["query"]}'}
+        return {"query": f"query: {data['query']}"}
 
     def retriever_picker(data: State) -> list[str]:
         return ["analyzer_one", "retriever_two"]
 
     def analyzer_one(data: State) -> State:
-        return {"query": f'analyzed: {data["query"]}'}
+        return {"query": f"analyzed: {data['query']}"}
 
     def retriever_one(data: State) -> State:
         return {"docs": ["doc1", "doc2"]}
@@ -7447,38 +7447,38 @@ def test_checkpoint_metadata() -> None:
 
 def test_callable_class_conditional_edges() -> None:
     """Test that callable class instances work with add_conditional_edges without path_map."""
-    
+
     class State(TypedDict):
         value: str
-    
+
     class CallableCondition:
         """A callable class that returns a Literal type."""
-        
+
         def __call__(self, state: State) -> Literal["left", "right"]:
             return "left" if state["value"] == "go_left" else "right"
-    
+
     def left_node(state: State) -> State:
         return {"value": "left_executed"}
-    
+
     def right_node(state: State) -> State:
         return {"value": "right_executed"}
-    
+
     # Create the callable instance
     condition_instance = CallableCondition()
-    
+
     # This should not raise a TypeError after the fix
     workflow = StateGraph(State)
     workflow.add_node("left", left_node)
     workflow.add_node("right", right_node)
     workflow.set_entry_point("left")
-    
+
     # This call should work without raising TypeError
     # The path_map should be inferred from the __call__ method's return type
     workflow.add_conditional_edges("left", condition_instance)
-    
+
     # Compile and test the graph
     app = workflow.compile()
-    
+
     # Test that it works correctly
     result = app.invoke({"value": "go_left"})
     assert result["value"] == "left_executed"
