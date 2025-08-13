@@ -81,6 +81,9 @@ def test_regular_function_still_works():
     def condition_function(state: State) -> Literal["left", "right"]:
         return "left" if state["value"] == "go_left" else "right"
     
+    def start_node(state: State) -> State:
+        return state  # Pass through the initial state
+    
     def left_node(state: State) -> State:
         return {"value": "left_executed"}
     
@@ -91,21 +94,27 @@ def test_regular_function_still_works():
     
     try:
         workflow = StateGraph(State)
+        workflow.add_node("start", start_node)
         workflow.add_node("left", left_node)
         workflow.add_node("right", right_node)
-        workflow.set_entry_point("left")
+        workflow.set_entry_point("start")
         
         # This should still work as before
-        workflow.add_conditional_edges("left", condition_function)
+        workflow.add_conditional_edges("start", condition_function)
         print("✅ SUCCESS: Regular functions still work")
         
         # Compile and test the graph
         app = workflow.compile()
         
-        # Test that it works correctly
+        # Test that it works correctly - should go to left
         result = app.invoke({"value": "go_left"})
         assert result["value"] == "left_executed", f"Expected 'left_executed', got {result['value']}"
-        print("✅ SUCCESS: Regular function graph execution works correctly")
+        print("✅ SUCCESS: Regular function graph execution works correctly (go_left → left_executed)")
+        
+        # Test the other path - should go to right
+        result2 = app.invoke({"value": "go_right"})
+        assert result2["value"] == "right_executed", f"Expected 'right_executed', got {result2['value']}"
+        print("✅ SUCCESS: Regular function both paths work correctly (go_right → right_executed)")
         
         return True
         
@@ -131,4 +140,5 @@ if __name__ == "__main__":
     else:
         print("💥 SOME TESTS FAILED! The fix needs more work.")
         sys.exit(1)
+
 
