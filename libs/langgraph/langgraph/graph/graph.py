@@ -1,3 +1,4 @@
+import inspect
 import logging
 from collections import defaultdict
 from typing import (
@@ -492,3 +493,4 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
