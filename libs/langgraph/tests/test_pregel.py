@@ -7443,3 +7443,39 @@ def test_checkpoint_metadata() -> None:
         assert chkpnt_tuple.metadata["thread_id"] == "2"
         assert chkpnt_tuple.metadata["test_config_3"] == "foo"
         assert chkpnt_tuple.metadata["test_config_4"] == "bar"
+
+def test_callable_class_conditional_edges() -> None:
+    """Test that callable class instances work with add_conditional_edges without path_map."""
+    
+    class CallableCondition:
+        """A callable class that returns a Literal type for conditional edges."""
+        
+        def __call__(self, data: Any) -> Literal["continue", "exit"]:
+            # Simple logic for testing
+            return "continue" if data.get("should_continue", True) else "exit"
+    
+    def dummy_node(data: Any) -> Any:
+        return data
+    
+    # Create the graph
+    workflow = Graph()
+    workflow.add_node("agent", dummy_node)
+    workflow.add_node("continue", dummy_node)
+    workflow.add_node("exit", dummy_node)
+    workflow.set_entry_point("agent")
+    
+    # Create callable class instance
+    callable_condition = CallableCondition()
+    
+    # This should not raise a TypeError and should infer path_map from type hints
+    workflow.add_conditional_edges("agent", callable_condition)
+    workflow.add_edge("continue", END)
+    workflow.add_edge("exit", END)
+    
+    # The graph should compile successfully
+    compiled_graph = workflow.compile()
+    assert compiled_graph is not None, "Graph should compile successfully"
+    
+    # Test that the graph works correctly
+    result = compiled_graph.invoke({"should_continue": True})
+    assert result is not None, "Graph should execute successfully"
