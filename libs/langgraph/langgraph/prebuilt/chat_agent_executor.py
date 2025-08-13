@@ -738,6 +738,10 @@ def create_react_agent(
         workflow.add_conditional_edges("tools", route_tool_responses)
     else:
         workflow.add_edge("tools", "agent")
+    
+    # Add edge from respond node to end when response_format is provided
+    if response_format is not None:
+        workflow.add_edge("respond", "__end__")
 
     # Finally, we compile it!
     # This compiles it into a LangChain Runnable,
@@ -759,6 +763,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
