@@ -125,12 +125,10 @@ class Graph:
         return self.edges
 
     @overload
-    def add_node(self, node: RunnableLike) -> None:
-        ...
+    def add_node(self, node: RunnableLike) -> None: ...
 
     @overload
-    def add_node(self, node: str, action: RunnableLike) -> None:
-        ...
+    def add_node(self, node: str, action: RunnableLike) -> None: ...
 
     def add_node(
         self, node: Union[str, RunnableLike], action: Optional[RunnableLike] = None
@@ -174,11 +172,11 @@ class Graph:
         """Safely extract type hints from path, handling callable class instances."""
         try:
             # First try to get type hints from path.__call__ for callable class instances
-            if hasattr(path, '__call__') and not isinstance(path, type):
+            if hasattr(path, "__call__") and not isinstance(path, type):
                 return get_type_hints(path.__call__)
         except (TypeError, AttributeError):
             pass
-        
+
         try:
             # Fall back to getting type hints from path directly
             return get_type_hints(path)
@@ -228,11 +226,12 @@ class Graph:
                 path_map = {name: name for name in get_args(rtn_type)}
         # find a name for the condition
         path = coerce_to_runnable(path, name=None, trace=True)
-        name = getattr(path, 'name', None) or "condition"
+        name = getattr(path, "name", None) or "condition"
         # validate the condition
         if name in self.branches[source]:
             raise ValueError(
-                f"Branch with name `{getattr(path, 'name', 'condition')}` already exists for node " f"`{source}`"
+                f"Branch with name `{getattr(path, 'name', 'condition')}` already exists for node "
+                f"`{source}`"
             )
         # save it
         self.branches[source][name] = Branch(path, path_map, then)
@@ -508,6 +507,3 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
-
-
-
