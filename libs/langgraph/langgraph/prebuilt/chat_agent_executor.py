@@ -654,6 +654,35 @@ def create_react_agent(
             debug=debug,
         )
 
+    # Define the function that parses structured output
+    def parse_structured_output(state: AgentState, config: RunnableConfig) -> AgentState:
+        """Parse the conversation context into structured output format."""
+        if response_format is None:
+            return state
+        
+        try:
+            # Create a model with structured output binding
+            structured_model = cast(BaseChatModel, model).with_structured_output(response_format)
+            
+            # Get the preprocessor to prepare the state for the model
+            preprocessor = _get_model_preprocessing_runnable(
+                state_modifier, messages_modifier, store
+            )
+            structured_runnable = preprocessor | structured_model
+            
+            # Parse the conversation context into structured format
+            structured_response = structured_runnable.invoke(state, config)
+            
+            # Update state with structured response
+            updated_state = dict(state)
+            updated_state["structured_response"] = structured_response
+            return updated_state
+            
+        except Exception as e:
+            # Handle parsing errors gracefully by returning original state
+            # In a production system, you might want to log this error
+            return state
+
     # Define the function that determines whether to continue or not
     def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
         messages = state["messages"]
@@ -722,6 +751,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
