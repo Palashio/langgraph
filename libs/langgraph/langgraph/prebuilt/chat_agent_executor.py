@@ -677,8 +677,17 @@ def create_react_agent(
                     )
                 ]
             }
+        # Check if we should parse structured output
+        structured_response = None
+        if response_format and not has_tool_calls:
+            # Agent is ending (no tool calls) and response_format is provided
+            structured_response = _parse_structured_output(response)
+        
         # We return a list, because this will get added to the existing list
-        return {"messages": [response]}
+        result = {"messages": [response]}
+        if structured_response is not None:
+            result["structured_response"] = structured_response
+        return result
 
     if not tool_calling_enabled:
         # Define a new graph
@@ -757,6 +766,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
