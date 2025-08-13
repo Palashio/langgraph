@@ -47,17 +47,17 @@ def test_multiple_interruptions_after_resumption():
     
     config = {"configurable": {"thread_id": "test_multiple_interrupts"}}
     
-    # Step 1: Start execution, should interrupt after node_one
+    # Step 1: Start execution, should interrupt before node_two
     print("Step 1: Starting execution...")
-    result = app.invoke(1, config)
+    result = app.invoke({"value": 1}, config)
     print(f"Result after step 1: {result}")
-    assert result is None, "Should be interrupted after node_one"
+    assert result is None, "Should be interrupted before node_two"
     
     # Check state - should have completed node_one (1 + 1 = 2)
-    checkpoint = checkpointer.get(config)
-    assert checkpoint is not None
-    print(f"Channel values after step 1: {checkpoint['channel_values']}")
-    assert checkpoint["channel_values"]["output_one"] == 2
+    state = app.get_state(config)
+    print(f"State after step 1: {state.values}")
+    assert state.values["value"] == 2
+    assert state.next == ("node_two",)
     
     # Step 2: Resume execution with None, should interrupt after node_two
     print("Step 2: Resuming execution...")
@@ -90,6 +90,7 @@ def test_multiple_interruptions_after_resumption():
 
 if __name__ == "__main__":
     test_multiple_interruptions_after_resumption()
+
 
 
 
