@@ -10,5 +10,7 @@ __all__ = [
     "MessageGraph",
     "add_messages",
     "MessagesState",
+    "RemoveMessage",
 ]
+
 
