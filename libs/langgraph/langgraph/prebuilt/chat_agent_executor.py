@@ -562,6 +562,40 @@ def create_react_agent(
     # our graph needs to check if these were called
     should_return_direct = {t.name for t in tool_classes if t.return_direct}
 
+    # Helper function to parse structured output
+    def _parse_structured_output(response: AIMessage) -> Optional[Any]:
+        """Parse the AI message content into the specified response format."""
+        if not response_format or not isinstance(response, AIMessage):
+            return None
+        
+        try:
+            # Try to parse the response content as JSON first
+            import json
+            if isinstance(response.content, str):
+                # Try to extract JSON from the content
+                content = response.content.strip()
+                if content.startswith('{') and content.endswith('}'):
+                    # Direct JSON parsing
+                    parsed_data = json.loads(content)
+                    return response_format(**parsed_data)
+                else:
+                    # Try to parse the content directly with the model
+                    return response_format.model_validate_json(content)
+            else:
+                # If content is not a string, try to use it directly
+                return response_format(**response.content)
+        except Exception:
+            # If parsing fails, try to use the content as-is with the model
+            try:
+                if isinstance(response.content, str):
+                    # Try to parse as a simple string and let Pydantic handle it
+                    return response_format.model_validate_json(f'"{response.content}"')
+                else:
+                    return response_format(**{"content": response.content})
+            except Exception:
+                # Return None if all parsing attempts fail
+                return None
+
     # Define the function that calls the model
     def call_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
@@ -714,6 +748,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
