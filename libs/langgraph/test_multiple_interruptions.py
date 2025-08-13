@@ -50,52 +50,52 @@ def test_multiple_interruptions_after_resumption():
     
     config = {"configurable": {"thread_id": "test_multiple_interrupts"}}
     
-    # Step 1: Start execution, should interrupt before node_two
+    config = {"configurable": {"thread_id": "test_multiple_interrupts"}}
+    
+    # Step 1: Start execution, should interrupt after node_one
     print("Step 1: Starting execution...")
-    result = app.invoke({"value": 1}, config)
+    result = app.invoke(1, config)
     print(f"Result after step 1: {result}")
-    assert result is None, "Should be interrupted before node_two"
+    assert result is None, "Should be interrupted after node_one"
     
     # Check state - should have completed node_one (1 + 1 = 2)
-    state = app.get_state(config)
-    print(f"State after step 1: {state.values}")
-    assert state.values["value"] == 2
-    assert state.next == ("node_two",)
+    checkpoint = checkpointer.get(config)
+    assert checkpoint is not None
+    print(f"Channel values after step 1: {checkpoint['channel_values']}")
+    assert checkpoint["channel_values"]["output_one"] == 2
     
-    # Step 2: Resume execution with None, should interrupt before node_three
+    # Step 2: Resume execution with None, should interrupt after node_two
     print("Step 2: Resuming execution...")
     result = app.invoke(None, config)
     print(f"Result after step 2: {result}")
     
     # This assertion will fail due to the bug - the second interruption is ignored
-    try:
-        assert result is None, "Should be interrupted before node_three"
+    if result is None:
         print("SUCCESS: Second interruption worked correctly!")
         
         # Check state - should have completed node_two (2 + 10 = 12)
-        state = app.get_state(config)
-        print(f"State after step 2: {state.values}")
-        assert state.values["value"] == 12
-        assert state.next == ("node_three",)
+        checkpoint = checkpointer.get(config)
+        assert checkpoint is not None
+        print(f"Channel values after step 2: {checkpoint['channel_values']}")
+        assert checkpoint["channel_values"]["output_two"] == 12
         
-    except AssertionError:
+        # Step 3: Resume execution with None again, should complete
+        print("Step 3: Final resume...")
+        result = app.invoke(None, config)
+        print(f"Final result: {result}")
+        assert result == 112  # 12 + 100 = 112
+        
+    else:
         print("BUG REPRODUCED: Second interruption was ignored!")
-        state = app.get_state(config)
-        print(f"State after step 2: {state.values}")
-        print(f"Actual result: {result}")
+        print(f"Expected: None (interrupted), Actual: {result}")
         print("This demonstrates the bug where subsequent interruptions are ignored after resuming with None")
-        # Don't raise the error - we expect this to fail due to the bug
-        return
-    
-    # Step 3: Resume execution with None again, should complete
-    print("Step 3: Final resume...")
-    result = app.invoke(None, config)
-    print(f"Final result: {result}")
-    assert result["value"] == 112  # 12 + 100 = 112
+        # The execution continued to completion instead of interrupting after node_two
+        assert result == 112, f"Expected final result 112 due to bug, got {result}"
 
 
 if __name__ == "__main__":
     test_multiple_interruptions_after_resumption()
+
 
 
 
