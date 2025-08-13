@@ -206,7 +206,8 @@ class Graph:
         elif isinstance(path_map, list):
             path_map = {name: name for name in path_map}
         else:
-            # Try to get type hints from path, fallback to path.__call__ for callable class instances
+            # Try to get type hints from path, fallback to path.__call__
+            # for callable class instances
             try:
                 type_hints = get_type_hints(path)
             except TypeError:
@@ -501,3 +502,4 @@ class CompiledGraph(Pregel):
                         graph.add_edge(start_nodes[end], end_nodes[branch.then])
 
         return graph
+
