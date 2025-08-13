@@ -760,6 +760,10 @@ def create_react_agent(
         # Next, we pass in the function that will determine which node is called next.
         should_continue,
     )
+    
+    # Add edge from respond node to end when response_format is provided
+    if response_format is not None:
+        workflow.add_edge("respond", "__end__")
 
     def route_tool_responses(state: AgentState) -> Literal["agent", "__end__"]:
         for m in reversed(state["messages"]):
@@ -794,6 +798,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
