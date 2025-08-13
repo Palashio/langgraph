@@ -666,7 +666,11 @@ def create_react_agent(
             return "tools"
 
     # Define a new graph
-    workflow = StateGraph(state_schema or AgentState)
+    # Use AgentStateWithStructuredOutput if response_format is provided
+    if response_format is not None and state_schema is None:
+        workflow = StateGraph(AgentStateWithStructuredOutput)
+    else:
+        workflow = StateGraph(state_schema or AgentState)
 
     # Define the two nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
@@ -718,6 +722,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
