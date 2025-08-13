@@ -23,7 +23,7 @@ class TestAddMessagesFunction:
         msgs1 = [HumanMessage(content="Hello", id="1")]
         msgs2 = [AIMessage(content="Hi there!", id="2")]
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 2
         assert result[0].id == "1"
         assert result[1].id == "2"
@@ -35,7 +35,7 @@ class TestAddMessagesFunction:
         msgs1 = [HumanMessage(content="Hello", id="1")]
         msgs2 = [HumanMessage(content="Hello again", id="1")]
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 1
         assert result[0].id == "1"
         assert result[0].content == "Hello again"
@@ -45,11 +45,11 @@ class TestAddMessagesFunction:
         msgs1 = [
             HumanMessage(content="Hello", id="1"),
             AIMessage(content="Hi", id="2"),
-            HumanMessage(content="How are you?", id="3")
+            HumanMessage(content="How are you?", id="3"),
         ]
         msgs2 = [RemoveMessage(id="2")]
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 2
         assert result[0].id == "1"
         assert result[1].id == "3"
@@ -61,11 +61,11 @@ class TestAddMessagesFunction:
             HumanMessage(content="Hello", id="1"),
             AIMessage(content="Hi", id="2"),
             HumanMessage(content="How are you?", id="3"),
-            AIMessage(content="I'm good", id="4")
+            AIMessage(content="I'm good", id="4"),
         ]
         msgs2 = [RemoveMessage(id="2"), RemoveMessage(id="4")]
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 2
         assert result[0].id == "1"
         assert result[1].id == "3"
@@ -76,15 +76,15 @@ class TestAddMessagesFunction:
         msgs1 = [
             HumanMessage(content="Hello", id="1"),
             AIMessage(content="Hi", id="2"),
-            HumanMessage(content="How are you?", id="3")
+            HumanMessage(content="How are you?", id="3"),
         ]
         msgs2 = [
             RemoveMessage(id="2"),  # Remove message with id="2"
             AIMessage(content="I'm good!", id="4"),  # Add new message
-            HumanMessage(content="Updated hello", id="1")  # Update existing message
+            HumanMessage(content="Updated hello", id="1"),  # Update existing message
         ]
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 3
         # Check that message with id="2" was removed
         assert not any(m.id == "2" for m in result)
@@ -102,32 +102,29 @@ class TestAddMessagesFunction:
         msgs1 = [HumanMessage(content="Hello", id="1")]
         msgs2 = [RemoveMessage(id="999")]  # ID that doesn't exist
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 1
         assert result[0].id == "1"
         assert result[0].content == "Hello"
 
     def test_remove_all_messages(self):
         """Test removing all messages."""
-        msgs1 = [
-            HumanMessage(content="Hello", id="1"),
-            AIMessage(content="Hi", id="2")
-        ]
+        msgs1 = [HumanMessage(content="Hello", id="1"), AIMessage(content="Hi", id="2")]
         msgs2 = [RemoveMessage(id="1"), RemoveMessage(id="2")]
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 0
 
     def test_empty_lists(self):
         """Test with empty message lists."""
         result = add_messages([], [])
         assert len(result) == 0
-        
+
         msgs1 = [HumanMessage(content="Hello", id="1")]
         result = add_messages(msgs1, [])
         assert len(result) == 1
         assert result[0].id == "1"
-        
+
         msgs2 = [AIMessage(content="Hi", id="2")]
         result = add_messages([], msgs2)
         assert len(result) == 1
@@ -138,7 +135,7 @@ class TestAddMessagesFunction:
         msg1 = HumanMessage(content="Hello", id="1")
         msg2 = RemoveMessage(id="1")
         result = add_messages(msg1, msg2)
-        
+
         assert len(result) == 0
 
     def test_different_message_types(self):
@@ -147,11 +144,11 @@ class TestAddMessagesFunction:
             SystemMessage(content="System", id="1"),
             HumanMessage(content="Human", id="2"),
             AIMessage(content="AI", id="3"),
-            ToolMessage(content="Tool", tool_call_id="call_1", id="4")
+            ToolMessage(content="Tool", tool_call_id="call_1", id="4"),
         ]
         msgs2 = [RemoveMessage(id="2"), RemoveMessage(id="4")]
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 2
         assert result[0].id == "1"
         assert result[1].id == "3"
@@ -164,26 +161,27 @@ class TestMessageGraphIntegration:
 
     def test_message_graph_with_removal(self):
         """Test MessageGraph with node that removes messages."""
+
         def chatbot(messages):
             return [AIMessage(content="Hello!", id="ai-1")]
-        
+
         def delete_first(messages):
             if messages:
                 return [RemoveMessage(id=messages[0].id)]
             return []
-        
+
         builder = MessageGraph()
         builder.add_node("chatbot", chatbot)
         builder.add_node("delete_first", delete_first)
         builder.set_entry_point("chatbot")
         builder.add_edge("chatbot", "delete_first")
         builder.set_finish_point("delete_first")
-        
+
         graph = builder.compile()
-        
+
         initial_messages = [HumanMessage(content="Hi there", id="human-1")]
         result = graph.invoke(initial_messages)
-        
+
         # The first message (human-1) should be removed, only AI message remains
         assert len(result) == 1
         assert result[0].id == "ai-1"
@@ -191,25 +189,29 @@ class TestMessageGraphIntegration:
 
     def test_message_graph_mixed_operations(self):
         """Test MessageGraph with mixed add/remove operations."""
+
         def process_messages(messages):
             return [
                 AIMessage(content="Processing...", id="ai-process"),
-                RemoveMessage(id=messages[-1].id) if messages else None
+                RemoveMessage(id=messages[-1].id) if messages else None,
             ]
-        
+
         builder = MessageGraph()
-        builder.add_node("processor", lambda msgs: [m for m in process_messages(msgs) if m is not None])
+        builder.add_node(
+            "processor",
+            lambda msgs: [m for m in process_messages(msgs) if m is not None],
+        )
         builder.set_entry_point("processor")
         builder.set_finish_point("processor")
-        
+
         graph = builder.compile()
-        
+
         initial_messages = [
             HumanMessage(content="First", id="1"),
-            HumanMessage(content="Second", id="2")
+            HumanMessage(content="Second", id="2"),
         ]
         result = graph.invoke(initial_messages)
-        
+
         # Should have first message + new AI message, second message removed
         assert len(result) == 2
         assert result[0].id == "1"
@@ -222,50 +224,52 @@ class TestStateGraphIntegration:
 
     def test_state_graph_with_messages_state(self):
         """Test StateGraph with MessagesState and message removal."""
+
         def chatbot(state: MessagesState):
             return {"messages": [AIMessage(content="Hello!", id="ai-1")]}
-        
+
         builder = StateGraph(MessagesState)
         builder.add_node("chatbot", chatbot)
         builder.set_entry_point("chatbot")
         builder.set_finish_point("chatbot")
-        
+
         graph = builder.compile()
-        
+
         initial_state = {"messages": [HumanMessage(content="Hi", id="human-1")]}
         result = graph.invoke(initial_state)
-        
+
         assert len(result["messages"]) == 2
         assert result["messages"][0].id == "human-1"
         assert result["messages"][1].id == "ai-1"
 
     def test_update_state_with_remove_message(self):
         """Test user-initiated deletion via graph.update_state()."""
+
         def chatbot(state: MessagesState):
             return {"messages": [AIMessage(content="Hello!", id="ai-1")]}
-        
+
         builder = StateGraph(MessagesState)
         builder.add_node("chatbot", chatbot)
         builder.set_entry_point("chatbot")
         builder.set_finish_point("chatbot")
-        
+
         checkpointer = MemorySaver()
         graph = builder.compile(checkpointer=checkpointer)
-        
+
         # Initial run
         config = {"configurable": {"thread_id": "test-thread"}}
         initial_state = {"messages": [HumanMessage(content="Hi", id="human-1")]}
         result = graph.invoke(initial_state, config=config)
-        
+
         assert len(result["messages"]) == 2
-        
+
         # Update state to remove the human message
         graph.update_state(config, values={"messages": [RemoveMessage(id="human-1")]})
-        
+
         # Get current state
         current_state = graph.get_state(config)
         messages = current_state.values["messages"]
-        
+
         # Should only have the AI message now
         assert len(messages) == 1
         assert messages[0].id == "ai-1"
@@ -273,27 +277,28 @@ class TestStateGraphIntegration:
 
     def test_node_based_deletion(self):
         """Test node-based deletion via lambda function."""
+
         def chatbot(state: MessagesState):
             return {"messages": [AIMessage(content="Hello!", id="ai-1")]}
-        
+
         def delete_messages(state: MessagesState):
             # Delete the last message
             if state["messages"]:
                 return {"messages": [RemoveMessage(id=state["messages"][-1].id)]}
             return {"messages": []}
-        
+
         builder = StateGraph(MessagesState)
         builder.add_node("chatbot", chatbot)
         builder.add_node("delete_messages", delete_messages)
         builder.set_entry_point("chatbot")
         builder.add_edge("chatbot", "delete_messages")
         builder.set_finish_point("delete_messages")
-        
+
         graph = builder.compile()
-        
+
         initial_state = {"messages": [HumanMessage(content="Hi", id="human-1")]}
         result = graph.invoke(initial_state)
-        
+
         # The AI message (last one) should be removed, only human message remains
         assert len(result["messages"]) == 1
         assert result["messages"][0].id == "human-1"
@@ -301,37 +306,35 @@ class TestStateGraphIntegration:
 
     def test_custom_state_with_messages(self):
         """Test custom state schema with messages and RemoveMessage."""
+
         class CustomState(TypedDict):
             messages: Annotated[list, add_messages]
             counter: int
-        
+
         def increment_and_remove(state: CustomState):
             # Increment counter and remove first message if exists
             messages_to_add = []
             if state["messages"]:
                 messages_to_add.append(RemoveMessage(id=state["messages"][0].id))
-            
-            return {
-                "messages": messages_to_add,
-                "counter": state["counter"] + 1
-            }
-        
+
+            return {"messages": messages_to_add, "counter": state["counter"] + 1}
+
         builder = StateGraph(CustomState)
         builder.add_node("increment_and_remove", increment_and_remove)
         builder.set_entry_point("increment_and_remove")
         builder.set_finish_point("increment_and_remove")
-        
+
         graph = builder.compile()
-        
+
         initial_state = {
             "messages": [
                 HumanMessage(content="First", id="1"),
-                HumanMessage(content="Second", id="2")
+                HumanMessage(content="Second", id="2"),
             ],
-            "counter": 0
+            "counter": 0,
         }
         result = graph.invoke(initial_state)
-        
+
         # Counter should be incremented, first message should be removed
         assert result["counter"] == 1
         assert len(result["messages"]) == 1
@@ -348,7 +351,7 @@ class TestEdgeCases:
         # RemoveMessage should always have an ID, but test graceful handling
         msgs2 = [RemoveMessage(id=None)]
         result = add_messages(msgs1, msgs2)
-        
+
         # Should not remove anything since RemoveMessage has no ID
         assert len(result) == 1
         assert result[0].id == "1"
@@ -356,12 +359,9 @@ class TestEdgeCases:
     def test_concurrent_add_and_remove_same_id(self):
         """Test adding and removing message with same ID in same operation."""
         msgs1 = [HumanMessage(content="Hello", id="1")]
-        msgs2 = [
-            RemoveMessage(id="1"),
-            AIMessage(content="New message", id="1")
-        ]
+        msgs2 = [RemoveMessage(id="1"), AIMessage(content="New message", id="1")]
         result = add_messages(msgs1, msgs2)
-        
+
         # The remove should happen first, then add
         assert len(result) == 1
         assert result[0].id == "1"
@@ -375,11 +375,11 @@ class TestEdgeCases:
             AIMessage(content="Second", id="2"),
             HumanMessage(content="Third", id="3"),
             AIMessage(content="Fourth", id="4"),
-            HumanMessage(content="Fifth", id="5")
+            HumanMessage(content="Fifth", id="5"),
         ]
         msgs2 = [RemoveMessage(id="2"), RemoveMessage(id="4")]
         result = add_messages(msgs1, msgs2)
-        
+
         assert len(result) == 3
         assert result[0].content == "First"
         assert result[1].content == "Third"
@@ -395,58 +395,56 @@ class TestBackwardCompatibility:
         """Test that all existing message handling patterns still work."""
         # Test basic append
         result = add_messages(
-            [HumanMessage(content="Hello", id="1")],
-            [AIMessage(content="Hi", id="2")]
+            [HumanMessage(content="Hello", id="1")], [AIMessage(content="Hi", id="2")]
         )
         assert len(result) == 2
-        
+
         # Test message update
         result = add_messages(
             [HumanMessage(content="Hello", id="1")],
-            [HumanMessage(content="Updated", id="1")]
+            [HumanMessage(content="Updated", id="1")],
         )
         assert len(result) == 1
         assert result[0].content == "Updated"
-        
+
         # Test with message-like representations
-        result = add_messages(
-            [("human", "Hello")],
-            [("ai", "Hi")]
-        )
+        result = add_messages([("human", "Hello")], [("ai", "Hi")])
         assert len(result) == 2
         assert result[0].content == "Hello"
         assert result[1].content == "Hi"
 
     def test_message_graph_backward_compatibility(self):
         """Test that MessageGraph still works as before."""
+
         def chatbot(messages):
             return [AIMessage(content="Hello!")]
-        
+
         builder = MessageGraph()
         builder.add_node("chatbot", chatbot)
         builder.set_entry_point("chatbot")
         builder.set_finish_point("chatbot")
-        
+
         graph = builder.compile()
         result = graph.invoke([HumanMessage(content="Hi")])
-        
+
         assert len(result) == 2  # Original + new message
         assert isinstance(result[0], HumanMessage)
         assert isinstance(result[1], AIMessage)
 
     def test_messages_state_backward_compatibility(self):
         """Test that MessagesState still works as before."""
+
         def chatbot(state: MessagesState):
             return {"messages": [AIMessage(content="Hello!")]}
-        
+
         builder = StateGraph(MessagesState)
         builder.add_node("chatbot", chatbot)
         builder.set_entry_point("chatbot")
         builder.set_finish_point("chatbot")
-        
+
         graph = builder.compile()
         result = graph.invoke({"messages": [HumanMessage(content="Hi")]})
-        
+
         assert len(result["messages"]) == 2
         assert isinstance(result["messages"][0], HumanMessage)
         assert isinstance(result["messages"][1], AIMessage)
