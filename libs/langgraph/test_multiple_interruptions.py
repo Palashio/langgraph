@@ -4,9 +4,13 @@ This test demonstrates the bug where subsequent interruptions are ignored
 after resuming execution with input=None.
 """
 
-from langgraph.channels.last_value import LastValue
+from typing import TypedDict
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.pregel import Channel, Pregel
+from langgraph.graph import StateGraph, END
+
+
+class State(TypedDict):
+    value: int
 
 
 def test_multiple_interruptions_after_resumption():
@@ -16,33 +20,29 @@ def test_multiple_interruptions_after_resumption():
     after resuming execution with input=None.
     """
     # Create a simple graph with three nodes that can be interrupted
-    def add_one(x: int) -> int:
-        return x + 1
+    def node_one(state: State) -> State:
+        return {"value": state["value"] + 1}
     
-    def add_ten(x: int) -> int:
-        return x + 10
+    def node_two(state: State) -> State:
+        return {"value": state["value"] + 10}
     
-    def add_hundred(x: int) -> int:
-        return x + 100
+    def node_three(state: State) -> State:
+        return {"value": state["value"] + 100}
     
-    # Build the graph using the existing pattern from other tests
-    one = Channel.subscribe_to("input") | add_one | Channel.write_to("output_one")
-    two = Channel.subscribe_to("output_one") | add_ten | Channel.write_to("output_two")
-    three = Channel.subscribe_to("output_two") | add_hundred | Channel.write_to("output")
+    # Build the graph using StateGraph pattern from existing tests
+    workflow = StateGraph(State)
+    workflow.add_node("node_one", node_one)
+    workflow.add_node("node_two", node_two)
+    workflow.add_node("node_three", node_three)
+    workflow.set_entry_point("node_one")
+    workflow.add_edge("node_one", "node_two")
+    workflow.add_edge("node_two", "node_three")
+    workflow.add_edge("node_three", END)
     
     checkpointer = MemorySaver()
-    app = Pregel(
-        nodes={"node_one": one, "node_two": two, "node_three": three},
-        channels={
-            "input": LastValue(int),
-            "output_one": LastValue(int),
-            "output_two": LastValue(int),
-            "output": LastValue(int),
-        },
-        input_channels="input",
-        output_channels="output",
+    app = workflow.compile(
         checkpointer=checkpointer,
-        interrupt_after_nodes=["node_one", "node_two"],
+        interrupt_before=["node_two", "node_three"],
     )
     
     config = {"configurable": {"thread_id": "test_multiple_interrupts"}}
@@ -90,6 +90,7 @@ def test_multiple_interruptions_after_resumption():
 
 if __name__ == "__main__":
     test_multiple_interruptions_after_resumption()
+
 
 
 
