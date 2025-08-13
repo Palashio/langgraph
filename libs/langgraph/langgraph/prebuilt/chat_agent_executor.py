@@ -709,6 +709,8 @@ def create_react_agent(
         messages = state["messages"]
         last_message = messages[-1]
         # If there is no function call, then we finish
+        # This handles both regular completion and structured output scenarios
+        # When response_format is provided, structured parsing occurs in call_model
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
             return "__end__"
         # Otherwise if there is, we continue
@@ -768,6 +770,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
