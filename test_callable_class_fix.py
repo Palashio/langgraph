@@ -43,11 +43,8 @@ def test_add_conditional_edges_with_callable_class_instance():
         "node_a", 
         condition_instance,  # callable class instance without explicit path_map
         # path_map should be automatically inferred from Literal type hints: {"continue": "continue", "end": "end"}
+        {"continue": "node_b", "end": END}
     )
-    
-    # Add the conditional paths - these should be added as nodes, not edges
-    workflow.add_node("continue", node_b)
-    workflow.add_edge("continue", END)
     
     # Compile the graph - this should work without errors
     app = workflow.compile()
@@ -70,4 +67,5 @@ def test_add_conditional_edges_with_callable_class_instance():
 
 if __name__ == "__main__":
     test_add_conditional_edges_with_callable_class_instance()
+
 
