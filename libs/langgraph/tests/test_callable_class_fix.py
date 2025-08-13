@@ -5,7 +5,6 @@ to work properly with add_conditional_edges without requiring an explicit path_m
 """
 
 from typing import Literal
-import pytest
 from langgraph.graph import Graph, END
 
 
@@ -83,3 +82,4 @@ def test_add_conditional_edges_with_callable_class_instance_no_path_map() -> Non
     # Compile the graph - this should work without errors
     app = workflow.compile()
     assert app, "Graph should compile successfully with callable class instance and auto-generated path_map"
+
