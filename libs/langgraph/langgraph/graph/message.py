@@ -4,6 +4,7 @@ from typing import Annotated, TypedDict, Union
 from langchain_core.messages import (
     AnyMessage,
     MessageLikeRepresentation,
+    RemoveMessage,
     convert_to_messages,
     message_chunk_to_message,
 )
@@ -138,3 +139,4 @@ class MessageGraph(StateGraph):
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
+
