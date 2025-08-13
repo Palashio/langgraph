@@ -707,6 +707,8 @@ def create_react_agent(
         messages = state["messages"]
         last_message = messages[-1]
         # If there is no function call, then we finish
+        # Note: structured output parsing (if response_format is provided) has already
+        # occurred in the agent node before this routing decision is made
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
             return "__end__"
         # Otherwise if there is, we continue
@@ -766,6 +768,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
