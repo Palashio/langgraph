@@ -207,6 +207,7 @@ def create_react_agent(
     interrupt_before: Optional[list[str]] = None,
     interrupt_after: Optional[list[str]] = None,
     debug: bool = False,
+    response_format: Optional[Type[BaseModel]] = None,
 ) -> CompiledGraph:
     """Creates a graph that works with a chat model that utilizes tool calling.
 
@@ -711,4 +712,5 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
