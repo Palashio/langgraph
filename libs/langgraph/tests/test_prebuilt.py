@@ -132,6 +132,50 @@ class FakeToolCallingModel(BaseChatModel):
 
         return self.bind(tools=tool_dicts)
 
+    def with_structured_output(
+        self, schema: Union[Dict, Type[BaseModel]], **kwargs: Any
+    ) -> Runnable[LanguageModelInput, Union[Dict, BaseModel]]:
+        """Add structured output support for testing."""
+        def _parse_output(ai_message: AIMessage) -> Union[Dict, BaseModel]:
+            # For testing, we'll create a simple structured response based on the schema
+            if isinstance(schema, type) and issubclass(schema, BaseModel):
+                # Create a mock instance with default values
+                if hasattr(schema, '__fields__'):
+                    # Pydantic v1
+                    field_defaults = {}
+                    for field_name, field_info in schema.__fields__.items():
+                        if field_info.type_ == str:
+                            field_defaults[field_name] = f"test_{field_name}"
+                        elif field_info.type_ == int:
+                            field_defaults[field_name] = 42
+                        elif field_info.type_ == float:
+                            field_defaults[field_name] = 3.14
+                        elif field_info.type_ == bool:
+                            field_defaults[field_name] = True
+                        else:
+                            field_defaults[field_name] = f"test_{field_name}"
+                    return schema(**field_defaults)
+                else:
+                    # Pydantic v2
+                    field_defaults = {}
+                    for field_name, field_info in schema.model_fields.items():
+                        if field_info.annotation == str:
+                            field_defaults[field_name] = f"test_{field_name}"
+                        elif field_info.annotation == int:
+                            field_defaults[field_name] = 42
+                        elif field_info.annotation == float:
+                            field_defaults[field_name] = 3.14
+                        elif field_info.annotation == bool:
+                            field_defaults[field_name] = True
+                        else:
+                            field_defaults[field_name] = f"test_{field_name}"
+                    return schema(**field_defaults)
+            else:
+                # Return a simple dict for dict schemas
+                return {"test_key": "test_value"}
+        
+        return self | RunnableLambda(_parse_output)
+
 
 @pytest.mark.parametrize("checkpointer_name", ALL_CHECKPOINTERS_SYNC)
 def test_no_modifier(request: pytest.FixtureRequest, checkpointer_name: str) -> None:
@@ -2047,3 +2091,4 @@ def test_inspect_react() -> None:
     model = FakeToolCallingModel(tool_calls=[])
     agent = create_react_agent(model, [])
     inspect.getclosurevars(agent.nodes["agent"].bound.func)
+
