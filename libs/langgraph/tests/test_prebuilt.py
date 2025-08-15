@@ -2092,3 +2092,214 @@ def test_inspect_react() -> None:
     agent = create_react_agent(model, [])
     inspect.getclosurevars(agent.nodes["agent"].bound.func)
 
+
+# Structured Output Tests
+
+class WeatherResponse(BaseModel):
+    """Simple Pydantic model for testing structured output."""
+    temperature: float
+    wind_direction: str
+    wind_speed: float
+
+
+class ComplexResponse(BaseModel):
+    """More complex Pydantic model for testing."""
+    summary: str
+    confidence: float
+    tags: List[str]
+    metadata: Dict[str, Any]
+
+
+def test_structured_output_basic() -> None:
+    """Test basic structured output generation with a simple Pydantic model."""
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    agent = create_react_agent(model, [], response_format=WeatherResponse)
+    
+    result = agent.invoke({"messages": [HumanMessage("What's the weather?")]})
+    
+    # Check that regular messages are present
+    assert len(result["messages"]) == 2
+    assert isinstance(result["messages"][0], HumanMessage)
+    assert isinstance(result["messages"][1], AIMessage)
+    
+    # Check that structured_response is included in the final state
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+    
+    # Verify the structured response has expected fields
+    structured_resp = result["structured_response"]
+    assert hasattr(structured_resp, "temperature")
+    assert hasattr(structured_resp, "wind_direction")
+    assert hasattr(structured_resp, "wind_speed")
+    assert structured_resp.temperature == 3.14
+    assert structured_resp.wind_direction == "test_wind_direction"
+    assert structured_resp.wind_speed == 3.14
+
+
+def test_structured_output_without_response_format() -> None:
+    """Test that agent works normally when response_format is not provided."""
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    agent = create_react_agent(model, [])  # No response_format
+    
+    result = agent.invoke({"messages": [HumanMessage("Hello")]})
+    
+    # Check that regular messages are present
+    assert len(result["messages"]) == 2
+    assert isinstance(result["messages"][0], HumanMessage)
+    assert isinstance(result["messages"][1], AIMessage)
+    
+    # Check that structured_response is NOT included when response_format is None
+    assert "structured_response" not in result
+
+
+def test_structured_output_with_tools_then_structured() -> None:
+    """Test tool calls followed by structured output generation."""
+    
+    @dec_tool
+    def get_weather(location: str) -> str:
+        """Get weather for a location."""
+        return f"Weather in {location}: sunny, 75°F"
+    
+    # First call has tool calls, second call has no tool calls (triggers structured output)
+    tool_calls = [
+        ToolCall(name="get_weather", args={"location": "NYC"}, id="1")
+    ]
+    model = FakeToolCallingModel(tool_calls=[tool_calls, []])
+    agent = create_react_agent(model, [get_weather], response_format=WeatherResponse)
+    
+    result = agent.invoke({"messages": [HumanMessage("What's the weather in NYC?")]})
+    
+    # Should have: HumanMessage, AIMessage with tool calls, ToolMessage, AIMessage, structured_response
+    assert len(result["messages"]) == 4
+    assert isinstance(result["messages"][0], HumanMessage)
+    assert isinstance(result["messages"][1], AIMessage)
+    assert len(result["messages"][1].tool_calls) == 1
+    assert isinstance(result["messages"][2], ToolMessage)
+    assert isinstance(result["messages"][3], AIMessage)
+    
+    # Check that structured_response is included after tool execution
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+
+
+def test_structured_output_complex_model() -> None:
+    """Test structured output with a more complex Pydantic model."""
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    agent = create_react_agent(model, [], response_format=ComplexResponse)
+    
+    result = agent.invoke({"messages": [HumanMessage("Analyze this data")]})
+    
+    # Check that structured_response is included and properly typed
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], ComplexResponse)
+    
+    structured_resp = result["structured_response"]
+    assert hasattr(structured_resp, "summary")
+    assert hasattr(structured_resp, "confidence")
+    assert hasattr(structured_resp, "tags")
+    assert hasattr(structured_resp, "metadata")
+    assert structured_resp.summary == "test_summary"
+    assert structured_resp.confidence == 3.14
+    assert structured_resp.tags == "test_tags"  # Our mock returns string for complex types
+    assert structured_resp.metadata == "test_metadata"
+
+
+def test_structured_output_with_checkpointer() -> None:
+    """Test structured output works with checkpointer."""
+    checkpointer = MemorySaver()
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    agent = create_react_agent(model, [], response_format=WeatherResponse, checkpointer=checkpointer)
+    
+    thread = {"configurable": {"thread_id": "test_structured"}}
+    result = agent.invoke({"messages": [HumanMessage("Weather?")]}, thread)
+    
+    # Check that structured_response is included
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+    
+    # Check that state is properly saved in checkpointer
+    saved_state = checkpointer.get(thread)
+    assert saved_state is not None
+
+
+@pytest.mark.parametrize("checkpointer_name", ALL_CHECKPOINTERS_SYNC)
+def test_structured_output_all_checkpointers(request: pytest.FixtureRequest, checkpointer_name: str) -> None:
+    """Test structured output works with all checkpointer types."""
+    checkpointer: BaseCheckpointSaver = request.getfixturevalue(
+        "checkpointer_" + checkpointer_name
+    )
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    agent = create_react_agent(model, [], response_format=WeatherResponse, checkpointer=checkpointer)
+    
+    thread = {"configurable": {"thread_id": "test_structured_all"}}
+    result = agent.invoke({"messages": [HumanMessage("Weather?")]}, thread)
+    
+    # Check that structured_response is included
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+
+
+def test_structured_output_multiple_calls() -> None:
+    """Test that structured output is only generated on the final call without tool calls."""
+    
+    @dec_tool
+    def simple_tool(input: str) -> str:
+        """A simple tool."""
+        return f"Tool result: {input}"
+    
+    # Multiple calls: tool call, then no tool calls (should trigger structured output)
+    tool_calls = [ToolCall(name="simple_tool", args={"input": "test"}, id="1")]
+    model = FakeToolCallingModel(tool_calls=[tool_calls, []])
+    agent = create_react_agent(model, [simple_tool], response_format=WeatherResponse)
+    
+    result = agent.invoke({"messages": [HumanMessage("Use the tool then give weather")]})
+    
+    # Should have tool execution followed by structured output
+    assert len(result["messages"]) == 4  # Human, AI with tools, Tool, AI final
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+
+
+def test_structured_output_no_tools_immediate() -> None:
+    """Test structured output when no tools are provided and response_format is set."""
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    agent = create_react_agent(model, [], response_format=WeatherResponse)  # No tools
+    
+    result = agent.invoke({"messages": [HumanMessage("What's the weather?")]})
+    
+    # Should immediately generate structured output since no tools are available
+    assert len(result["messages"]) == 2  # Human, AI
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+
+
+async def test_structured_output_async() -> None:
+    """Test structured output works with async agent execution."""
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    agent = create_react_agent(model, [], response_format=WeatherResponse)
+    
+    result = await agent.ainvoke({"messages": [HumanMessage("Weather?")]})
+    
+    # Check that structured_response is included
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+
+
+def test_structured_output_preserves_regular_messages() -> None:
+    """Test that structured output doesn't interfere with regular message flow."""
+    model = FakeToolCallingModel(tool_calls=[[]])  # No tool calls
+    agent = create_react_agent(model, [], response_format=WeatherResponse)
+    
+    input_message = HumanMessage("What's the weather?", id="human1")
+    result = agent.invoke({"messages": [input_message]})
+    
+    # Check that original message is preserved
+    assert result["messages"][0] == input_message
+    assert isinstance(result["messages"][1], AIMessage)
+    assert result["messages"][1].content == "What's the weather?"
+    
+    # And structured output is added
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
+
+
