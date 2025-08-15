@@ -32,8 +32,8 @@ class FakeStructuredModel(BaseChatModel):
     
     def __init__(self, tool_calls: Optional[List[List[ToolCall]]] = None, **kwargs):
         super().__init__(**kwargs)
-        self.tool_calls = tool_calls or [[]]
-        self.index = 0
+        self._tool_calls = tool_calls or [[]]
+        self._index = 0
     
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         """Generate a response."""
@@ -191,3 +191,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
