@@ -710,6 +710,11 @@ def create_react_agent(
     def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
         messages = state["messages"]
         last_message = messages[-1]
+        
+        # If structured output is requested and we have a structured response, we're done
+        if response_format is not None and "structured_response" in state and state["structured_response"] is not None:
+            return "__end__"
+        
         # If there is no function call, then we finish
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
             return "__end__"
@@ -770,6 +775,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
