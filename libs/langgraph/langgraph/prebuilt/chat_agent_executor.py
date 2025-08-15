@@ -36,6 +36,8 @@ class AgentState(TypedDict):
     is_last_step: IsLastStep
 
     remaining_steps: RemainingSteps
+    
+    structured_response: Optional[BaseModel]
 
 
 StateSchema = TypeVar("StateSchema", bound=AgentState)
@@ -712,5 +714,6 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
