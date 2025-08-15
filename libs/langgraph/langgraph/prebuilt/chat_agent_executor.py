@@ -565,6 +565,34 @@ def create_react_agent(
     # Define the function that calls the model
     def call_model(state: AgentState, config: RunnableConfig) -> AgentState:
         _validate_chat_history(state["messages"])
+        
+        # Use structured output if response_format is provided
+        if response_format is not None:
+            # Check if this is the final step (no more tool calls expected)
+            is_final_step = (
+                ("remaining_steps" not in state and state["is_last_step"]) or
+                ("remaining_steps" in state and state["remaining_steps"] <= 1)
+            )
+            
+            if is_final_step:
+                # Use structured output for final response
+                try:
+                    structured_model = model_runnable.with_structured_output(response_format)
+                    structured_response = structured_model.invoke(state, config)
+                    
+                    # Create a regular AI message for the conversation flow
+                    ai_message = AIMessage(
+                        content=f"Here's the structured response: {structured_response}"
+                    )
+                    
+                    return {
+                        "messages": [ai_message],
+                        "structured_response": structured_response
+                    }
+                except Exception:
+                    # Fall back to regular model if structured output fails
+                    pass
+        
         response = model_runnable.invoke(state, config)
         has_tool_calls = isinstance(response, AIMessage) and response.tool_calls
         all_tools_return_direct = (
@@ -714,6 +742,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
