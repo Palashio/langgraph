@@ -39,14 +39,14 @@ class FakeStructuredModel(BaseChatModel):
         """Generate a response."""
         messages_string = "-".join([m.content for m in messages])
         tool_calls = (
-            self.tool_calls[self.index % len(self.tool_calls)]
-            if self.tool_calls
+            self._tool_calls[self._index % len(self._tool_calls)]
+            if self._tool_calls
             else []
         )
         message = AIMessage(
-            content=messages_string, id=str(self.index), tool_calls=tool_calls.copy()
+            content=messages_string, id=str(self._index), tool_calls=tool_calls.copy()
         )
-        self.index += 1
+        self._index += 1
         return ChatResult(generations=[ChatGeneration(message=message)])
     
     @property
@@ -191,4 +191,5 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
 
