@@ -68,6 +68,7 @@ class KafkaOrchestrator(AbstractAsyncContextManager):
         )
         self.producer = await self.stack.enter_async_context(
             aiokafka.AIOKafkaProducer(
+                key_serializer=serde.dumps,
                 value_serializer=serde.dumps,
                 **self.kwargs,
                 **self.producer_kwargs,
@@ -204,5 +205,6 @@ class KafkaOrchestrator(AbstractAsyncContextManager):
                 )
                 # wait for messages to be sent
                 await asyncio.gather(*futs)
+
 
 
