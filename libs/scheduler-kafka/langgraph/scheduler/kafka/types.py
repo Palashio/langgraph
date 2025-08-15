@@ -17,7 +17,7 @@ class MessageToOrchestrator(TypedDict):
 
 class ExecutorTask(TypedDict):
     id: str
-    path: tuple[str, ...]
+    path: list[str]
 
 
 class MessageToExecutor(TypedDict):
@@ -30,3 +30,4 @@ class ErrorMessage(TypedDict):
     topic: str
     error: str
     msg: Union[MessageToExecutor, MessageToOrchestrator]
+
