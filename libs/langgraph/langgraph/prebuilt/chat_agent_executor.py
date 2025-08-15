@@ -606,7 +606,8 @@ def create_react_agent(
         # This happens when there are no tool calls and response_format is provided
         if response_format is not None and not has_tool_calls:
             # Use structured output to get the final response
-            structured_model = model_runnable.with_structured_output(response_format)
+            # We need to access the underlying model from the runnable sequence
+            structured_model = preprocessor | model.with_structured_output(response_format)
             structured_response = structured_model.invoke(state, config)
             return {
                 "messages": [response],
@@ -744,6 +745,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
