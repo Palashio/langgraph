@@ -76,6 +76,10 @@ class FuturesDict(Generic[F, E], dict[F, Optional[PregelExecutableTask]]):
         if value is not None:
             with self.lock:
                 self.counter += 1
+                # Unset event when a task is scheduled to prevent premature completion
+                # This fixes timing issue where sync task finishes before other tasks
+                # are registered in futures dict
+                self.event.clear()
             key.add_done_callback(partial(self.on_done, value))
 
     def on_done(
