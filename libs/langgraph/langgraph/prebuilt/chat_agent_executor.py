@@ -650,6 +650,18 @@ def create_react_agent(
                     )
                 ]
             }
+        
+        # Check if we should generate structured output
+        # This happens when there are no tool calls and response_format is provided
+        if response_format is not None and not has_tool_calls:
+            # Use structured output to get the final response
+            structured_model = model_runnable.with_structured_output(response_format)
+            structured_response = await structured_model.ainvoke(state, config)
+            return {
+                "messages": [response],
+                "structured_response": structured_response
+            }
+        
         # We return a list, because this will get added to the existing list
         return {"messages": [response]}
 
@@ -730,6 +742,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
