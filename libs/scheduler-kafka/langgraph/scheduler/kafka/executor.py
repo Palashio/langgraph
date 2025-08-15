@@ -61,6 +61,7 @@ class KafkaExecutor(AbstractAsyncContextManager):
                 group_id=self.group_id,
                 enable_auto_commit=False,
                 **self.kwargs,
+                **self.consumer_kwargs,
             )
         )
         self.producer = await self.stack.enter_async_context(
@@ -204,3 +205,4 @@ class KafkaExecutor(AbstractAsyncContextManager):
         writes: list[tuple[str, Any]],
     ) -> None:
         return submit(self.graph.checkpointer.aput_writes, config, writes, task_id)
+
