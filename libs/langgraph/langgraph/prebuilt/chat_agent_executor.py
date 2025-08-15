@@ -682,14 +682,14 @@ def create_react_agent(
     def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
         messages = state["messages"]
         last_message = messages[-1]
-        # If there is no function call, then we check if we need structured output
-        if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
-            # If response_format is provided and we haven't generated structured output yet, 
-            # we should have already generated it in call_model, so we can end
-            return "__end__"
-        # Otherwise if there is, we continue
-        else:
+        # If there are tool calls, continue to tools
+        if isinstance(last_message, AIMessage) and last_message.tool_calls:
             return "tools"
+        # If there are no tool calls, end the conversation
+        # Note: structured output generation (if needed) happens in call_model
+        # before this function is called, so we can safely end here
+        else:
+            return "__end__"
 
     # Define a new graph
     workflow = StateGraph(state_schema or AgentState)
@@ -744,6 +744,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
