@@ -641,6 +641,29 @@ def create_react_agent(
         # We return a list, because this will get added to the existing list
         return {"messages": [response]}
 
+    # Define the function that generates structured responses
+    def respond(state: AgentState, config: RunnableConfig) -> AgentState:
+        _validate_chat_history(state["messages"])
+        # Create a model with structured output
+        structured_model = model.with_structured_output(response_format)
+        # Apply the same preprocessing as the main model
+        structured_model_runnable = preprocessor | structured_model
+        # Generate structured response
+        structured_response = structured_model_runnable.invoke(state, config)
+        # Return state with structured response
+        return {"structured_response": structured_response}
+
+    async def arespond(state: AgentState, config: RunnableConfig) -> AgentState:
+        _validate_chat_history(state["messages"])
+        # Create a model with structured output
+        structured_model = model.with_structured_output(response_format)
+        # Apply the same preprocessing as the main model
+        structured_model_runnable = preprocessor | structured_model
+        # Generate structured response
+        structured_response = await structured_model_runnable.ainvoke(state, config)
+        # Return state with structured response
+        return {"structured_response": structured_response}
+
     if not tool_calling_enabled:
         # Define a new graph
         workflow = StateGraph(state_schema or AgentState)
@@ -722,6 +745,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
