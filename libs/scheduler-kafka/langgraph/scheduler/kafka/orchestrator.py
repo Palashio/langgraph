@@ -92,7 +92,7 @@ class KafkaOrchestrator(AbstractAsyncContextManager):
             )
             # dedupe messages, eg. if multiple nodes finish around same time
             uniq = set(msg.value for msgs in recs.values() for msg in msgs)
-            msgs: list[MessageToOrchestrator] = [serde.loads(msg) for msg in uniq]
+            msgs: list[MessageToOrchestrator] = list(uniq)
         except aiokafka.ConsumerStoppedError:
             raise StopAsyncIteration from None
         # process batch
@@ -204,4 +204,5 @@ class KafkaOrchestrator(AbstractAsyncContextManager):
                 )
                 # wait for messages to be sent
                 await asyncio.gather(*futs)
+
 
