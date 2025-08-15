@@ -69,6 +69,7 @@ class KafkaExecutor(AbstractAsyncContextManager):
                 key_serializer=serde.dumps,
                 value_serializer=serde.dumps,
                 **self.kwargs,
+                **self.producer_kwargs,
             )
         )
         self.subgraphs = {
@@ -205,4 +206,5 @@ class KafkaExecutor(AbstractAsyncContextManager):
         writes: list[tuple[str, Any]],
     ) -> None:
         return submit(self.graph.checkpointer.aput_writes, config, writes, task_id)
+
 
