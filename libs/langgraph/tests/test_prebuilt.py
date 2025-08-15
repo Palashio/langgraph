@@ -2061,6 +2061,40 @@ class WeatherResponseWithTypo(BaseModel):
     wind_speed: float
 
 
+class FakeStructuredOutputModel(FakeToolCallingModel):
+    """Extended FakeToolCallingModel that supports structured output."""
+    
+    def with_structured_output(self, schema: Type[BaseModel]):
+        """Mock implementation of with_structured_output."""
+        class StructuredOutputWrapper:
+            def __init__(self, original_model, schema):
+                self.original_model = original_model
+                self.schema = schema
+            
+            def invoke(self, state, config):
+                # Return a mock structured response based on the schema
+                if self.schema == WeatherResponse:
+                    return WeatherResponse(
+                        temperature=72.0,
+                        wind_direction="west",
+                        wind_speed=10.0
+                    )
+                elif self.schema == WeatherResponseWithTypo:
+                    return WeatherResponseWithTypo(
+                        temperature=72.0,
+                        wind_directon="west",  # Using the typo field
+                        wind_speed=10.0
+                    )
+                else:
+                    # Generic response for other schemas
+                    return self.schema()
+            
+            async def ainvoke(self, state, config):
+                return self.invoke(state, config)
+        
+        return StructuredOutputWrapper(self, schema)
+
+
 def test_create_react_agent_structured_output():
     """Test structured output functionality with WeatherResponse example."""
     
@@ -2070,41 +2104,8 @@ def test_create_react_agent_structured_output():
         return f"Temperature: 72°F, Wind: 10mph from the west in {location}"
     
     # Test with correct field names
-    model = FakeToolCallingModel(tool_calls=[[]])
+    model = FakeStructuredOutputModel(tool_calls=[[]])
     agent = create_react_agent(model, [get_weather], response_format=WeatherResponse)
-    
-    # Mock the structured output response
-    class MockStructuredModel:
-        def __init__(self, original_model):
-            self.original_model = original_model
-            
-        def with_structured_output(self, schema):
-            def mock_invoke(state, config):
-                # Return a mock structured response
-                return WeatherResponse(
-                    temperature=72.0,
-                    wind_direction="west", 
-                    wind_speed=10.0
-                )
-            
-            def mock_ainvoke(state, config):
-                return WeatherResponse(
-                    temperature=72.0,
-                    wind_direction="west",
-                    wind_speed=10.0
-                )
-            
-            mock_model = type('MockModel', (), {
-                'invoke': mock_invoke,
-                'ainvoke': mock_ainvoke
-            })()
-            return mock_model
-        
-        def __getattr__(self, name):
-            return getattr(self.original_model, name)
-    
-    # Replace the model with our mock
-    agent.nodes["agent"].bound.func.__closure__[5].cell_contents.original_model = MockStructuredModel(model)
     
     result = agent.invoke({"messages": [HumanMessage(content="What's the weather in San Francisco?")]})
     
@@ -2113,6 +2114,56 @@ def test_create_react_agent_structured_output():
     assert isinstance(result["structured_response"], WeatherResponse)
     assert result["structured_response"].temperature == 72.0
     assert result["structured_response"].wind_direction == "west"
+    assert result["structured_response"].wind_speed == 10.0
+    
+    # Verify messages are still present
+    assert "messages" in result
+    assert len(result["messages"]) > 0
+
+
+def test_create_react_agent_without_structured_output():
+    """Test that agent works normally without structured output."""
+    
+    @dec_tool
+    def get_weather(location: str) -> str:
+        """Get weather information for a location."""
+        return f"Temperature: 72°F, Wind: 10mph from the west in {location}"
+    
+    model = FakeToolCallingModel(tool_calls=[[]])
+    agent = create_react_agent(model, [get_weather])  # No response_format
+    
+    result = agent.invoke({"messages": [HumanMessage(content="What's the weather in San Francisco?")]})
+    
+    # Should not have structured_response field or it should be None
+    assert "structured_response" not in result or result.get("structured_response") is None
+    
+    # Should still have messages
+    assert "messages" in result
+    assert len(result["messages"]) > 0
+
+
+def test_create_react_agent_structured_output_with_typo():
+    """Test structured output with typo in field name (wind_directon vs wind_direction)."""
+    
+    @dec_tool
+    def get_weather(location: str) -> str:
+        """Get weather information for a location."""
+        return f"Temperature: 72°F, Wind: 10mph from the west in {location}"
+    
+    # Test with typo in field name
+    model = FakeStructuredOutputModel(tool_calls=[[]])
+    agent = create_react_agent(model, [get_weather], response_format=WeatherResponseWithTypo)
+    
+    # The agent should be created successfully even with the typo in the schema
+    assert agent is not None
+    
+    result = agent.invoke({"messages": [HumanMessage(content="What's the weather?")]})
+    
+    # Verify structured response with typo field is handled
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponseWithTypo)
+    assert result["structured_response"].temperature == 72.0
+    assert result["structured_response"].wind_directon == "west"  # Note the typo
     assert result["structured_response"].wind_speed == 10.0
     
     # Verify messages are still present
@@ -2129,11 +2180,12 @@ def test_create_react_agent_structured_output_with_tools():
         return f"Temperature: 72°F, Wind: 10mph from the west in {location}"
     
     # Create agent with tools and structured output
+    # First call has tool calls, second call has no tool calls (final response)
     tool_calls = [
         [ToolCall(name="get_weather", args={"location": "San Francisco"}, id="1")],
         []  # No tool calls in final response
     ]
-    model = FakeToolCallingModel(tool_calls=tool_calls)
+    model = FakeStructuredOutputModel(tool_calls=tool_calls)
     agent = create_react_agent(model, [get_weather], response_format=WeatherResponse)
     
     result = agent.invoke({"messages": [HumanMessage(content="What's the weather in San Francisco?")]})
@@ -2151,52 +2203,9 @@ def test_create_react_agent_structured_output_with_tools():
     assert tool_message is not None
     assert tool_message.name == "get_weather"
     assert "Temperature: 72°F" in tool_message.content
+    
+    # Should also have structured response in final state
+    assert "structured_response" in result
+    assert isinstance(result["structured_response"], WeatherResponse)
 
-
-def test_create_react_agent_without_structured_output():
-    """Test that agent works normally without structured output."""
-    
-    @dec_tool
-    def get_weather(location: str) -> str:
-        """Get weather information for a location."""
-        return f"Temperature: 72°F, Wind: 10mph from the west in {location}"
-    
-    model = FakeToolCallingModel(tool_calls=[[]])
-    agent = create_react_agent(model, [get_weather])  # No response_format
-    
-    result = agent.invoke({"messages": [HumanMessage(content="What's the weather in San Francisco?")]})
-    
-    # Should not have structured_response field
-    assert "structured_response" not in result or result.get("structured_response") is None
-    
-    # Should still have messages
-    assert "messages" in result
-    assert len(result["messages"]) > 0
-
-
-def test_create_react_agent_structured_output_field_validation():
-    """Test that structured output handles field validation properly."""
-    
-    # Test with typo in field name to ensure proper handling
-    class WeatherResponseTypo(BaseModel):
-        temperature: float
-        wind_directon: str  # Intentional typo
-        wind_speed: float
-    
-    @dec_tool
-    def get_weather(location: str) -> str:
-        """Get weather information for a location."""
-        return f"Temperature: 72°F, Wind: 10mph from the west in {location}"
-    
-    model = FakeToolCallingModel(tool_calls=[[]])
-    agent = create_react_agent(model, [get_weather], response_format=WeatherResponseTypo)
-    
-    # The agent should be created successfully even with the typo in the schema
-    # The actual validation would happen at runtime when the model tries to generate structured output
-    assert agent is not None
-    
-    # Verify the response_format is properly stored
-    # This tests that the typo doesn't break the agent creation process
-    result = agent.invoke({"messages": [HumanMessage(content="What's the weather?")]})
-    assert "messages" in result
 
