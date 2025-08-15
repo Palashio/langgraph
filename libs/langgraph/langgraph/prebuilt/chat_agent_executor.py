@@ -694,13 +694,15 @@ def create_react_agent(
 
     # Define a new graph
     # Use StructuredAgentState when response_format is provided, otherwise use AgentState
-    default_state_schema = StructuredAgentState if response_format is not None else AgentState
+    default_state_schema = (
+        StructuredAgentState if response_format is not None else AgentState
+    )
     workflow = StateGraph(state_schema or default_state_schema)
 
     # Define the nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
     workflow.add_node("tools", tool_node)
-    
+
     # Conditionally add the respond node if response_format is provided
     if response_format is not None:
         workflow.add_node("respond", RunnableCallable(respond, arespond))
@@ -755,12 +757,3 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
-
-
-
-
-
-
-
-
-
