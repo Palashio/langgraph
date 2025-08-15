@@ -58,6 +58,7 @@ class KafkaOrchestrator(AbstractAsyncContextManager):
         self.consumer = await self.stack.enter_async_context(
             aiokafka.AIOKafkaConsumer(
                 self.topics.orchestrator,
+                value_deserializer=serde.loads,
                 auto_offset_reset="earliest",
                 group_id=self.group_id,
                 enable_auto_commit=False,
@@ -203,3 +204,4 @@ class KafkaOrchestrator(AbstractAsyncContextManager):
                 )
                 # wait for messages to be sent
                 await asyncio.gather(*futs)
+
