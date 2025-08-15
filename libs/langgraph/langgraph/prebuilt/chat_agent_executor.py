@@ -1,4 +1,4 @@
-from typing import Callable, Literal, Optional, Sequence, Type, TypeVar, Union, cast
+from typing import Any, Callable, Literal, Optional, Sequence, Type, TypeVar, Union, cast
 
 from langchain_core.language_models import BaseChatModel, LanguageModelLike
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -35,6 +35,9 @@ class AgentState(TypedDict):
     is_last_step: IsLastStep
 
     remaining_steps: RemainingSteps
+
+    # Optional structured response when response_format is provided
+    structured_response: Any
 
 
 StateSchema = TypeVar("StateSchema", bound=AgentState)
@@ -201,6 +204,7 @@ def create_react_agent(
     state_schema: Optional[StateSchemaType] = None,
     messages_modifier: Optional[MessagesModifier] = None,
     state_modifier: Optional[StateModifier] = None,
+    response_format: Optional[Type[Any]] = None,
     checkpointer: Optional[Checkpointer] = None,
     store: Optional[BaseStore] = None,
     interrupt_before: Optional[list[str]] = None,
@@ -236,6 +240,9 @@ def create_react_agent(
             - str: This is converted to a SystemMessage and added to the beginning of the list of messages in state["messages"].
             - Callable: This function should take in full graph state and the output is then passed to the language model.
             - Runnable: This runnable should take in full graph state and the output is then passed to the language model.
+        response_format: An optional Pydantic model class to use for structured output.
+            When provided, the agent will return the final response in this structured format
+            in the 'structured_response' key of the output state, in addition to the regular 'messages'.
         checkpointer: An optional checkpoint saver object. This is used for persisting
             the state of the graph (e.g., as chat memory) for a single thread (e.g., a single conversation).
         store: An optional store object. This is used for persisting data
@@ -554,6 +561,12 @@ def create_react_agent(
     )
     model_runnable = preprocessor | model
 
+    # Create structured output model if response_format is provided
+    structured_model_runnable = None
+    if response_format is not None:
+        structured_model = cast(BaseChatModel, model).with_structured_output(response_format)
+        structured_model_runnable = preprocessor | structured_model
+
     # If any of the tools are configured to return_directly after running,
     # our graph needs to check if these were called
     should_return_direct = {t.name for t in tool_classes if t.return_direct}
@@ -633,11 +646,38 @@ def create_react_agent(
         # We return a list, because this will get added to the existing list
         return {"messages": [response]}
 
+    # Define the function that generates structured response
+    def respond(state: AgentState, config: RunnableConfig) -> AgentState:
+        if structured_model_runnable is None:
+            raise ValueError("structured_model_runnable is None but respond was called")
+        
+        # Generate structured response based on the conversation context
+        # Use the full conversation to understand what structured response to generate
+        structured_response = structured_model_runnable.invoke(state, config)
+        return {"structured_response": structured_response}
+
+    async def arespond(state: AgentState, config: RunnableConfig) -> AgentState:
+        if structured_model_runnable is None:
+            raise ValueError("structured_model_runnable is None but arespond was called")
+        
+        # Generate structured response based on the conversation context
+        # Use the full conversation to understand what structured response to generate
+        structured_response = await structured_model_runnable.ainvoke(state, config)
+        return {"structured_response": structured_response}
+
     if not tool_calling_enabled:
         # Define a new graph
         workflow = StateGraph(state_schema or AgentState)
         workflow.add_node("agent", RunnableCallable(call_model, acall_model))
-        workflow.set_entry_point("agent")
+        
+        if response_format is not None:
+            # Add respond node for structured output
+            workflow.add_node("respond", RunnableCallable(respond, arespond))
+            workflow.set_entry_point("agent")
+            workflow.add_edge("agent", "respond")
+        else:
+            workflow.set_entry_point("agent")
+        
         return workflow.compile(
             checkpointer=checkpointer,
             store=store,
@@ -647,15 +687,26 @@ def create_react_agent(
         )
 
     # Define the function that determines whether to continue or not
-    def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
-        messages = state["messages"]
-        last_message = messages[-1]
-        # If there is no function call, then we finish
-        if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
-            return "__end__"
-        # Otherwise if there is, we continue
-        else:
-            return "tools"
+    if response_format is not None:
+        def should_continue(state: AgentState) -> Literal["tools", "respond", "__end__"]:
+            messages = state["messages"]
+            last_message = messages[-1]
+            # If there is no function call, then we respond with structured output
+            if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
+                return "respond"
+            # Otherwise if there is, we continue
+            else:
+                return "tools"
+    else:
+        def should_continue(state: AgentState) -> Literal["tools", "__end__"]:
+            messages = state["messages"]
+            last_message = messages[-1]
+            # If there is no function call, then we finish
+            if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
+                return "__end__"
+            # Otherwise if there is, we continue
+            else:
+                return "tools"
 
     # Define a new graph
     workflow = StateGraph(state_schema or AgentState)
@@ -663,6 +714,10 @@ def create_react_agent(
     # Define the two nodes we will cycle between
     workflow.add_node("agent", RunnableCallable(call_model, acall_model))
     workflow.add_node("tools", tool_node)
+    
+    # Add respond node for structured output if response_format is provided
+    if response_format is not None:
+        workflow.add_node("respond", RunnableCallable(respond, arespond))
 
     # Set the entrypoint as `agent`
     # This means that this node is the first one called
@@ -677,18 +732,25 @@ def create_react_agent(
         should_continue,
     )
 
-    def route_tool_responses(state: AgentState) -> Literal["agent", "__end__"]:
+    def route_tool_responses(state: AgentState) -> Literal["agent", "respond", "__end__"]:
         for m in reversed(state["messages"]):
             if not isinstance(m, ToolMessage):
                 break
             if m.name in should_return_direct:
-                return "__end__"
+                if response_format is not None:
+                    return "respond"
+                else:
+                    return "__end__"
         return "agent"
 
     if should_return_direct:
         workflow.add_conditional_edges("tools", route_tool_responses)
     else:
         workflow.add_edge("tools", "agent")
+    
+    # Add edge from respond to end if response_format is provided
+    if response_format is not None:
+        workflow.add_edge("respond", "__end__")
 
     # Finally, we compile it!
     # This compiles it into a LangChain Runnable,
