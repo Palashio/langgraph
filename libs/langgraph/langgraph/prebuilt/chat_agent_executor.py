@@ -532,6 +532,38 @@ def create_react_agent(
         ...     print(s)
         TimeoutError: Timed out at step 2
         ```
+
+        Use with structured output:
+
+        ```pycon
+        >>> from pydantic import BaseModel
+        >>> from langchain_openai import ChatOpenAI
+        >>> from langgraph.prebuilt import create_react_agent
+
+        >>> class WeatherResponse(BaseModel):
+        ...     temperature: float
+        ...     wind_direction: str
+        ...     wind_speed: float
+
+        >>> def get_weather(location: str) -> str:
+        ...     '''Get weather information for a location.'''
+        ...     return f"Temperature: 72°F, Wind: 10mph from the west in {location}"
+
+        >>> model = ChatOpenAI(model="gpt-4o")
+        >>> tools = [get_weather]
+        >>> graph = create_react_agent(model, tools, response_format=WeatherResponse)
+        >>> inputs = {"messages": [("user", "What's the weather in San Francisco?")]}
+        >>> result = graph.invoke(inputs)
+        >>> print("Messages:", result["messages"][-1].content)
+        >>> print("Structured Response:", result["structured_response"])
+        Messages: Here's the structured response: temperature=72.0 wind_direction='west' wind_speed=10.0
+        Structured Response: WeatherResponse(temperature=72.0, wind_direction='west', wind_speed=10.0)
+        ```
+
+        The structured output is available in the final state under the "structured_response" key,
+        while regular conversational messages remain in the "messages" key. The agent can still
+        use tools and perform multi-step reasoning before generating the final structured response.
+        ```
     """
 
     if state_schema is not None:
@@ -779,6 +811,7 @@ __all__ = [
     "create_tool_calling_executor",
     "AgentState",
 ]
+
 
 
 
