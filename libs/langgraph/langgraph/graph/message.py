@@ -18,6 +18,8 @@ def add_messages(left: Messages, right: Messages) -> Messages:
 
     By default, this ensures the state is "append-only", unless the
     new message has the same ID as an existing message.
+    
+    Supports RemoveMessage for deleting messages by ID.
 
     Args:
         left: The base list of messages.
@@ -28,6 +30,8 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         A new list of messages with the messages from `right` merged into `left`.
         If a message in `right` has the same ID as a message in `left`, the
         message from `right` will replace the message from `left`.
+        If a RemoveMessage is in `right`, the message with the corresponding ID
+        will be removed from the result.
 
     Examples:
         ```pycon
@@ -41,6 +45,12 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         >>> msgs2 = [HumanMessage(content="Hello again", id="1")]
         >>> add_messages(msgs1, msgs2)
         [HumanMessage(content='Hello again', id='1')]
+
+        >>> from langchain_core.messages import RemoveMessage
+        >>> msgs1 = [HumanMessage(content="Hello", id="1"), AIMessage(content="Hi", id="2")]
+        >>> msgs2 = [RemoveMessage(id="1")]
+        >>> add_messages(msgs1, msgs2)
+        [AIMessage(content='Hi', id='2')]
 
         >>> from typing import Annotated
         >>> from typing_extensions import TypedDict
@@ -64,24 +74,47 @@ def add_messages(left: Messages, right: Messages) -> Messages:
         left = [left]
     if not isinstance(right, list):
         right = [right]
+    
+    # Import RemoveMessage locally to avoid affecting schema
+    try:
+        from langchain_core.messages import RemoveMessage
+    except ImportError:
+        # If RemoveMessage is not available, create a dummy class
+        class RemoveMessage:
+            pass
+    
+    # Separate RemoveMessage objects from regular messages before conversion
+    right_remove_messages = [m for m in right if isinstance(m, RemoveMessage)]
+    right_regular_messages = [m for m in right if not isinstance(m, RemoveMessage)]
+    
     # coerce to message
     left = [message_chunk_to_message(m) for m in convert_to_messages(left)]
-    right = [message_chunk_to_message(m) for m in convert_to_messages(right)]
+    right_regular = [message_chunk_to_message(m) for m in convert_to_messages(right_regular_messages)]
+    
     # assign missing ids
     for m in left:
         if m.id is None:
             m.id = str(uuid.uuid4())
-    for m in right:
+    for m in right_regular:
         if m.id is None:
             m.id = str(uuid.uuid4())
+    
     # merge
     left_idx_by_id = {m.id: i for i, m in enumerate(left)}
     merged = left.copy()
-    for m in right:
+    
+    # Handle regular messages
+    for m in right_regular:
         if (existing_idx := left_idx_by_id.get(m.id)) is not None:
             merged[existing_idx] = m
         else:
             merged.append(m)
+    
+    # Handle RemoveMessage objects
+    ids_to_remove = {m.id for m in right_remove_messages}
+    if ids_to_remove:
+        merged = [m for m in merged if m.id not in ids_to_remove]
+    
     return merged
 
 
