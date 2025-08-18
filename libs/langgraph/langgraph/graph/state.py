@@ -86,6 +86,14 @@ from langgraph.types import (
 from langgraph.typing import InputT, NodeInputT, OutputT, StateT
 from langgraph.warnings import LangGraphDeprecatedSinceV05
 
+# Import runtime utilities for context injection
+try:
+    from langgraph.runtime import _wrap_node_function
+except ImportError:
+    # Fallback if runtime module isn't available
+    def _wrap_node_function(func, context_schema=None):
+        return func
+
 __all__ = ("StateGraph", "CompiledStateGraph")
 
 logger = logging.getLogger(__name__)
@@ -122,14 +130,53 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
 
     Args:
         state_schema: The schema class that defines the state.
-        config_schema: The schema class that defines the configuration.
+        config_schema: DEPRECATED. Use `context_schema` instead.
+            The schema class that defines the configuration.
             Use this to expose configurable parameters in your API.
+        context_schema: The schema class that defines the runtime context.
+            Use this to expose configurable parameters that can be accessed
+            via the Runtime object in your nodes.
 
-    Example:
+    Example (New Context API):
+        ```python
+        from dataclasses import dataclass
+        from typing_extensions import Annotated, TypedDict
+        from langgraph.graph import StateGraph
+        from langgraph.runtime import Runtime
+
+        def reducer(a: list, b: int | None) -> list:
+            if b is not None:
+                return a + [b]
+            return a
+
+        class State(TypedDict):
+            x: Annotated[list, reducer]
+
+        @dataclass
+        class ContextSchema:
+            r: float
+
+        graph = StateGraph(State, context_schema=ContextSchema)
+
+        def node(state: State, runtime: Runtime[ContextSchema]) -> dict:
+            r = runtime.context.r
+            x = state["x"][-1]
+            next_value = x * r * (1 - x)
+            return {"x": next_value}
+
+        graph.add_node("A", node)
+        graph.set_entry_point("A")
+        graph.set_finish_point("A")
+        compiled = graph.compile()
+
+        step1 = compiled.invoke({"x": 0.5}, context={"r": 3.0})
+        # {'x': [0.5, 0.75]}
+        ```
+
+    Example (Legacy Config API - DEPRECATED):
         ```python
         from langchain_core.runnables import RunnableConfig
         from typing_extensions import Annotated, TypedDict
-        from langgraph.checkpoint.memory import MemorySaver
         from langgraph.graph import StateGraph
 
         def reducer(a: list, b: int | None) -> list:
@@ -143,10 +190,10 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
         class ConfigSchema(TypedDict):
             r: float
 
-        graph = StateGraph(State, config_schema=ConfigSchema)
+        graph = StateGraph(State, config_schema=ConfigSchema)  # DEPRECATED
 
         def node(state: State, config: RunnableConfig) -> dict:
-            r = config["configurable"].get("r", 1.0)
+            r = config["configurable"].get("r", 1.0)  # DEPRECATED
             x = state["x"][-1]
             next_value = x * r * (1 - x)
             return {"x": next_value}
@@ -156,10 +203,7 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
         graph.set_finish_point("A")
         compiled = graph.compile()
 
-        print(compiled.config_specs)
-        # [ConfigurableFieldSpec(id='r', annotation=<class 'float'>, name=None, description=None, default=None, is_shared=False, dependencies=None)]
-
-        step1 = compiled.invoke({"x": 0.5}, {"configurable": {"r": 3.0}})
+        step1 = compiled.invoke({"x": 0.5}, {"configurable": {"r": 3.0}})  # DEPRECATED
         # {'x': [0.5, 0.75]}
         ```
     """
@@ -182,6 +226,7 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
         state_schema: type[StateT],
         config_schema: type[Any] | None = None,
         *,
+        context_schema: type[Any] | None = None,
         input_schema: type[InputT] | None = None,
         output_schema: type[OutputT] | None = None,
         **kwargs: Unpack[DeprecatedKwargs],
@@ -204,6 +249,17 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
             if output_schema is None:
                 output_schema = cast(Union[type[OutputT], None], output)
 
+        # Handle config_schema deprecation
+        if config_schema is not None and context_schema is None:
+            warnings.warn(
+                "`config_schema` is deprecated and will be removed. Please use `context_schema` instead.",
+                category=LangGraphDeprecatedSinceV05,
+                stacklevel=2,
+            )
+            context_schema = config_schema
+        elif config_schema is not None and context_schema is not None:
+            raise ValueError("Cannot specify both `config_schema` and `context_schema`. Please use `context_schema`.")
+
         self.nodes = {}
         self.edges = set()
         self.branches = defaultdict(dict)
@@ -216,7 +272,8 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
         self.state_schema = state_schema
         self.input_schema = cast(type[InputT], input_schema or state_schema)
         self.output_schema = cast(type[OutputT], output_schema or state_schema)
-        self.config_schema = config_schema
+        self.config_schema = config_schema  # Keep for backward compatibility
+        self.context_schema = context_schema
 
         self._add_schema(self.state_schema)
         self._add_schema(self.input_schema, allow_managed=False)
@@ -497,9 +554,12 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
         if destinations is not None:
             ends = destinations
 
+        # Wrap action with runtime injection if it expects Runtime parameter
+        wrapped_action = _wrap_node_function(action, self.context_schema)
+
         if input_schema is not None:
             self.nodes[node] = StateNodeSpec[NodeInputT](
-                coerce_to_runnable(action, name=node, trace=False),
+                coerce_to_runnable(wrapped_action, name=node, trace=False),
                 metadata,
                 input_schema=input_schema,
                 retry_policy=retry_policy,
@@ -509,7 +569,7 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
             )
         elif inferred_input_schema is not None:
             self.nodes[node] = StateNodeSpec(
-                coerce_to_runnable(action, name=node, trace=False),
+                coerce_to_runnable(wrapped_action, name=node, trace=False),
                 metadata,
                 input_schema=inferred_input_schema,
                 retry_policy=retry_policy,
@@ -519,7 +579,7 @@ class StateGraph(Generic[StateT, InputT, OutputT]):
             )
         else:
             self.nodes[node] = StateNodeSpec[StateT](
-                coerce_to_runnable(action, name=node, trace=False),
+                coerce_to_runnable(wrapped_action, name=node, trace=False),
                 metadata,
                 input_schema=self.state_schema,
                 retry_policy=retry_policy,
@@ -911,6 +971,49 @@ class CompiledStateGraph(
             channels=self.builder.channels,
             name=self.get_name("Output"),
         )
+
+    def get_context_jsonschema(
+        self, config: RunnableConfig | None = None
+    ) -> dict[str, Any] | None:
+        """Get the JSON schema for the graph's context schema.
+        
+        This method replaces the deprecated config_specs property.
+        
+        Returns:
+            The JSON schema for the context schema, or None if no context schema is defined.
+        """
+        if self.builder.context_schema is None:
+            return None
+            
+        # For simple types, create a basic schema
+        if self.builder.context_schema in (str, int, float, bool):
+            return {"type": self.builder.context_schema.__name__}
+        
+        # For complex types, use pydantic/TypedDict mechanisms
+        try:
+            from pydantic import TypeAdapter
+            return TypeAdapter(self.builder.context_schema).json_schema()
+        except Exception:
+            # Fallback for non-serializable types
+            return {"type": "object", "description": f"Context schema: {self.builder.context_schema}"}
+
+    @property
+    def config_specs(self) -> list[dict[str, Any]]:
+        """DEPRECATED: Use get_context_jsonschema() instead.
+        
+        Returns config specs in the old format for backward compatibility.
+        """
+        warnings.warn(
+            "config_specs is deprecated and will be removed. Please use get_context_jsonschema() instead.",
+            category=LangGraphDeprecatedSinceV05,
+            stacklevel=2,
+        )
+        context_schema = self.get_context_jsonschema()
+        if context_schema is None:
+            return []
+        
+        # Convert to old config_specs format - this is a simplified conversion
+        return [{"schema": context_schema}]
 
     def attach_node(self, key: str, node: StateNodeSpec | None) -> None:
         if key == START:

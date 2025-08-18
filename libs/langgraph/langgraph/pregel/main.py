@@ -2350,6 +2350,7 @@ class Pregel(PregelProtocol[StateT, InputT, OutputT], Generic[StateT, InputT, Ou
         input: InputT | Command | None,
         config: RunnableConfig | None = None,
         *,
+        context: dict[str, Any] | None = None,
         stream_mode: StreamMode | Sequence[StreamMode] | None = None,
         print_mode: StreamMode | Sequence[StreamMode] = (),
         output_keys: str | Sequence[str] | None = None,
@@ -2364,6 +2365,9 @@ class Pregel(PregelProtocol[StateT, InputT, OutputT], Generic[StateT, InputT, Ou
         Args:
             input: The input to the graph.
             config: The configuration to use for the run.
+            context: Optional context dictionary to pass to graph nodes.
+                This provides a type-safe way to pass runtime parameters that can be accessed
+                via Runtime objects in nodes. Replaces the config["configurable"] pattern.
             stream_mode: The mode to stream output, defaults to `self.stream_mode`.
                 Options are:
 
@@ -2412,6 +2416,17 @@ class Pregel(PregelProtocol[StateT, InputT, OutputT], Generic[StateT, InputT, Ou
         stream = SyncQueue()
 
         config = ensure_config(self.config, config)
+        
+        # Handle context parameter - merge with existing configurable
+        if context is not None:
+            config = config.copy() if config else {}
+            if "configurable" not in config:
+                config["configurable"] = {}
+            # Merge context into configurable for backward compatibility
+            config["configurable"].update(context)
+            # Also add as new 'context' key for new API
+            config["context"] = context
+        
         callback_manager = get_callback_manager_for_config(config)
         run_manager = callback_manager.on_chain_start(
             None,
@@ -2834,6 +2849,7 @@ class Pregel(PregelProtocol[StateT, InputT, OutputT], Generic[StateT, InputT, Ou
             interrupt_before: Optional. The nodes to interrupt the graph run before.
             interrupt_after: Optional. The nodes to interrupt the graph run after.
             **kwargs: Additional keyword arguments to pass to the graph run.
+                Supports 'context' parameter for passing runtime context to nodes.
 
         Returns:
             The output of the graph run. If stream_mode is "values", it returns the latest output.
