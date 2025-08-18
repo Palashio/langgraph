@@ -247,9 +247,15 @@ class PregelLoop:
         first_channel = writes[0][0]
         any_channel_is_send = any(k == TASKS for k, _ in writes)
         always_save = any_channel_is_send or first_channel in SPECIAL_CHANNELS
-        if not always_save and not self.task_writes_left:
+        subgraph_streaming_enabled = CONFIG_KEY_STREAM in self.config.get("configurable", {})
+        
+        # Stream immediately if subgraph streaming is enabled, regardless of task_writes_left
+        if subgraph_streaming_enabled and not always_save:
+            self._output_writes(task_id, writes)
+        elif not always_save and not self.task_writes_left:
             return self._output_writes(task_id, writes)
-        elif first_channel == INTERRUPT:
+        
+        if first_channel == INTERRUPT:
             # INTERRUPT makes us want to save the last task's writes
             # so we don't decrement task_writes_left
             pass
@@ -273,8 +279,9 @@ class PregelLoop:
                 writes,
                 task_id,
             )
-        # output writes
-        self._output_writes(task_id, writes)
+        # output writes (original behavior for non-subgraph streaming or special channels)
+        if not subgraph_streaming_enabled or always_save:
+            self._output_writes(task_id, writes)
 
     def tick(
         self,
