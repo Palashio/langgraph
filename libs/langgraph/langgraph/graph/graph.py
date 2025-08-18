@@ -120,6 +120,19 @@ class Graph:
         self.support_multiple_edges = False
         self.compiled = False
 
+    def _get_type_hints_safe(self, path: Any) -> dict[str, Any]:
+        """Safely get type hints from a path, trying path.__call__ for callable class instances."""
+        try:
+            return get_type_hints(path)
+        except TypeError:
+            # If path is a callable class instance, try to get type hints from __call__
+            if hasattr(path, '__call__'):
+                try:
+                    return get_type_hints(path.__call__)
+                except (TypeError, AttributeError):
+                    pass
+            return {}
+
     @property
     def _all_edges(self) -> set[tuple[str, str]]:
         return self.edges
@@ -207,16 +220,16 @@ class Graph:
             path_map = path_map.copy()
         elif isinstance(path_map, list):
             path_map = {name: name for name in path_map}
-        elif rtn_type := get_type_hints(path).get("return"):
+        elif rtn_type := self._get_type_hints_safe(path).get("return"):
             if get_origin(rtn_type) is Literal:
                 path_map = {name: name for name in get_args(rtn_type)}
         # find a name for the condition
         path = coerce_to_runnable(path, name=None, trace=True)
-        name = path.name or "condition"
+        name = getattr(path, 'name', None) or "condition"
         # validate the condition
         if name in self.branches[source]:
             raise ValueError(
-                f"Branch with name `{path.name}` already exists for node " f"`{source}`"
+                f"Branch with name `{name}` already exists for node " f"`{source}`"
             )
         # save it
         self.branches[source][name] = Branch(path, path_map, then)
