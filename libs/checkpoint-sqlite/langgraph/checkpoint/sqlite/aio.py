@@ -274,6 +274,7 @@ class AsyncSqliteSaver(BaseCheckpointSaver[str]):
                     channel TEXT NOT NULL,
                     type TEXT,
                     value BLOB,
+                    task_path TEXT NOT NULL DEFAULT '',
                     PRIMARY KEY (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
                 );
                 """
@@ -334,7 +335,7 @@ class AsyncSqliteSaver(BaseCheckpointSaver[str]):
                     }
                 # find any pending writes
                 await cur.execute(
-                    "SELECT task_id, channel, type, value FROM writes WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ? ORDER BY task_id, idx",
+                    "SELECT task_id, channel, type, value FROM writes WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ? ORDER BY task_path, task_id, idx",
                     (
                         str(config["configurable"]["thread_id"]),
                         checkpoint_ns,
@@ -408,7 +409,7 @@ class AsyncSqliteSaver(BaseCheckpointSaver[str]):
                 metadata,
             ) in cur:
                 await wcur.execute(
-                    "SELECT task_id, channel, type, value FROM writes WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ? ORDER BY task_id, idx",
+                    "SELECT task_id, channel, type, value FROM writes WHERE thread_id = ? AND checkpoint_ns = ? AND checkpoint_id = ? ORDER BY task_path, task_id, idx",
                     (thread_id, checkpoint_ns, checkpoint_id),
                 )
                 yield CheckpointTuple(
@@ -506,9 +507,9 @@ class AsyncSqliteSaver(BaseCheckpointSaver[str]):
             task_path (str): Path of the task creating the writes.
         """
         query = (
-            "INSERT OR REPLACE INTO writes (thread_id, checkpoint_ns, checkpoint_id, task_id, idx, channel, type, value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT OR REPLACE INTO writes (thread_id, checkpoint_ns, checkpoint_id, task_id, idx, channel, type, value, task_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
             if all(w[0] in WRITES_IDX_MAP for w in writes)
-            else "INSERT OR IGNORE INTO writes (thread_id, checkpoint_ns, checkpoint_id, task_id, idx, channel, type, value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            else "INSERT OR IGNORE INTO writes (thread_id, checkpoint_ns, checkpoint_id, task_id, idx, channel, type, value, task_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         await self.setup()
         async with self.lock, self.conn.cursor() as cur:
@@ -523,6 +524,7 @@ class AsyncSqliteSaver(BaseCheckpointSaver[str]):
                         WRITES_IDX_MAP.get(channel, idx),
                         channel,
                         *self.serde.dumps_typed(value),
+                        task_path,
                     )
                     for idx, (channel, value) in enumerate(writes)
                 ],

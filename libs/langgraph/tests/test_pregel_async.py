@@ -2373,7 +2373,6 @@ async def test_concurrent_emit_sends() -> None:
     )
 
 
-@pytest.mark.skip("TODO: re-enable in next PR")
 @pytest.mark.parametrize("checkpointer_name", ALL_CHECKPOINTERS_ASYNC)
 async def test_send_sequences(checkpointer_name: str) -> None:
     class Node:
@@ -2621,7 +2620,6 @@ async def test_imp_stream_order(checkpointer_name: str) -> None:
         ]
 
 
-@pytest.mark.skip("TODO: re-enable in next PR")
 @pytest.mark.parametrize("checkpointer_name", REGULAR_CHECKPOINTERS_ASYNC)
 async def test_send_dedupe_on_resume(checkpointer_name: str) -> None:
     class InterruptOnce:
@@ -2685,7 +2683,6 @@ async def test_send_dedupe_on_resume(checkpointer_name: str) -> None:
         ]
         assert builder.nodes["2"].runnable.func.ticks == 3
         assert builder.nodes["flaky"].runnable.func.ticks == 1
-        print((await graph.aget_state(thread1)).tasks)
         # resume execution
         assert await graph.ainvoke(None, thread1, debug=1) == [
             "0",
@@ -2694,8 +2691,8 @@ async def test_send_dedupe_on_resume(checkpointer_name: str) -> None:
             "2|Command(goto=Send(node='2', arg=3))",
             "2|Command(goto=Send(node='flaky', arg=4))",
             "3",
-            "flaky|4",
             "2|3",
+            "flaky|4",
             "3",
         ]
         # node "2" doesn't get called again, as we recover writes saved before
@@ -2713,8 +2710,8 @@ async def test_send_dedupe_on_resume(checkpointer_name: str) -> None:
                     "2|Command(goto=Send(node='2', arg=3))",
                     "2|Command(goto=Send(node='flaky', arg=4))",
                     "3",
-                    "flaky|4",
                     "2|3",
+                    "flaky|4",
                     "3",
                 ],
                 next=(),
@@ -2750,8 +2747,8 @@ async def test_send_dedupe_on_resume(checkpointer_name: str) -> None:
                     "2|Command(goto=Send(node='2', arg=3))",
                     "2|Command(goto=Send(node='flaky', arg=4))",
                     "3",
-                    "flaky|4",
                     "2|3",
+                    "flaky|4",
                 ],
                 next=("3",),
                 config={
@@ -6693,3 +6690,69 @@ async def test_multiple_updates() -> None:
         {"node_a": [{"foo": "a1"}, {"foo": "a2"}]},
         {"node_b": {"foo": "b"}},
     ]
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="Python 3.11+ is required for async contextvars support",
+)
+async def test_falsy_return_from_task() -> None:
+    """Test with a falsy return from a task."""
+    checkpointer = MemorySaver()
+
+    @task
+    async def falsy_task() -> bool:
+        return False
+
+    @entrypoint(checkpointer=checkpointer)
+    async def graph(state: dict) -> dict:
+        """React tool."""
+        await falsy_task()
+        interrupt("test")
+
+    configurable = {"configurable": {"thread_id": uuid.uuid4()}}
+    await graph.ainvoke({"a": 5}, configurable)
+    await graph.ainvoke(Command(resume="123"), configurable)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="Python 3.11+ is required for async contextvars support",
+)
+@pytest.mark.parametrize("checkpointer_name", ALL_CHECKPOINTERS_ASYNC)
+async def test_multiple_interrupts_imperative(checkpointer_name: str) -> None:
+    """Test multiple interrupts with an imperative API."""
+    from langgraph.func import entrypoint, task
+
+    counter = 0
+
+    @task
+    async def double(x: int) -> int:
+        """Increment the counter."""
+        nonlocal counter
+        counter += 1
+        return 2 * x
+
+    async with awith_checkpointer(checkpointer_name) as checkpointer:
+
+        @entrypoint(checkpointer=checkpointer)
+        async def graph(state: dict) -> dict:
+            """React tool."""
+
+            values = []
+
+            for idx in [1, 2, 3]:
+                values.extend([await double(idx), interrupt({"a": "boo"})])
+
+            return {"values": values}
+
+        configurable = {"configurable": {"thread_id": str(uuid.uuid4())}}
+        await graph.ainvoke({}, configurable)
+        await graph.ainvoke(Command(resume="a"), configurable)
+        await graph.ainvoke(Command(resume="b"), configurable)
+        result = await graph.ainvoke(Command(resume="c"), configurable)
+        # `double` value should be cached appropriately when used w/ `interrupt`
+        assert result == {
+            "values": [2, "a", 4, "b", 6, "c"],
+        }
+        assert counter == 3

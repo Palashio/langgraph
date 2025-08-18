@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+import inspect
 from collections import defaultdict, deque
 from contextlib import AsyncExitStack, ExitStack
 from types import TracebackType
@@ -288,20 +289,46 @@ class PregelLoop(LoopProtocol):
             else:
                 self.checkpoint_pending_writes.append((task_id, c, v))
         if self.checkpointer_put_writes is not None:
-            self.submit(
-                self.checkpointer_put_writes,
-                patch_configurable(
-                    self.checkpoint_config,
-                    {
-                        CONFIG_KEY_CHECKPOINT_NS: self.config[CONF].get(
-                            CONFIG_KEY_CHECKPOINT_NS, ""
-                        ),
-                        CONFIG_KEY_CHECKPOINT_ID: self.checkpoint["id"],
-                    },
-                ),
-                writes,
-                task_id,
-            )
+            # Check if checkpointer put_writes supports task_path parameter
+            sig = inspect.signature(self.checkpointer_put_writes)
+            task_path = ""
+            if hasattr(self, "tasks") and task_id in self.tasks:
+                task = self.tasks[task_id]
+                task_path = str(task.path) if hasattr(task, 'path') else ""
+            
+            if "task_path" in sig.parameters:
+                # New signature with task_path
+                self.submit(
+                    self.checkpointer_put_writes,
+                    patch_configurable(
+                        self.checkpoint_config,
+                        {
+                            CONFIG_KEY_CHECKPOINT_NS: self.config[CONF].get(
+                                CONFIG_KEY_CHECKPOINT_NS, ""
+                            ),
+                            CONFIG_KEY_CHECKPOINT_ID: self.checkpoint["id"],
+                        },
+                    ),
+                    writes,
+                    task_id,
+                    task_path,
+                )
+            else:
+                # Legacy signature without task_path
+                self.submit(
+                    self.checkpointer_put_writes,
+                    patch_configurable(
+                        self.checkpoint_config,
+                        {
+                            CONFIG_KEY_CHECKPOINT_NS: self.config[CONF].get(
+                                CONFIG_KEY_CHECKPOINT_NS, ""
+                            ),
+                            CONFIG_KEY_CHECKPOINT_ID: self.checkpoint["id"],
+                        },
+                    ),
+                    writes,
+                    task_id,
+                )
         # output writes
         if hasattr(self, "tasks"):
             self._output_writes(task_id, writes)
