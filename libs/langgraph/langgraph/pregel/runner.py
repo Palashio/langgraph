@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+import threading
 import time
 from functools import partial
 from typing import (
@@ -38,6 +39,57 @@ from langgraph.pregel.executor import Submit
 from langgraph.pregel.retry import arun_with_retry, run_with_retry
 from langgraph.types import PregelExecutableTask, RetryPolicy
 from langgraph.utils.future import chain_future
+
+
+def _create_chained_future(
+    source_future: Union[concurrent.futures.Future, asyncio.Future],
+    is_async: bool = False,
+) -> Union[concurrent.futures.Future, asyncio.Future]:
+    """Create a fresh future chained to the source future.
+    
+    This ensures that waiters for the returned future are only notified
+    after done callbacks of the source future have been called.
+    """
+    if is_async:
+        # For asyncio futures
+        dest_future: asyncio.Future = asyncio.Future()
+        
+        def copy_result(fut: asyncio.Future) -> None:
+            if dest_future.cancelled():
+                return
+            try:
+                if fut.cancelled():
+                    dest_future.cancel()
+                elif exc := fut.exception():
+                    dest_future.set_exception(exc)
+                else:
+                    dest_future.set_result(fut.result())
+            except Exception as e:
+                if not dest_future.done():
+                    dest_future.set_exception(e)
+        
+        source_future.add_done_callback(copy_result)
+        return dest_future
+    else:
+        # For concurrent.futures.Future
+        dest_future: concurrent.futures.Future = concurrent.futures.Future()
+        
+        def copy_result(fut: concurrent.futures.Future) -> None:
+            if dest_future.cancelled():
+                return
+            try:
+                if fut.cancelled():
+                    dest_future.cancel()
+                elif exc := fut.exception():
+                    dest_future.set_exception(exc)
+                else:
+                    dest_future.set_result(fut.result())
+            except Exception as e:
+                if not dest_future.done():
+                    dest_future.set_exception(e)
+        
+        source_future.add_done_callback(copy_result)
+        return dest_future
 
 
 class PregelRunner:
@@ -138,7 +190,9 @@ class PregelRunner:
                             # updates from this tick are committed/streamed first
                             __next_tick__=True,
                         )
-                        fut.add_done_callback(partial(self.commit, next_task))
+                        with callbacks_lock:
+                            pending_callbacks += 1
+                        fut.add_done_callback(partial(track_done_callback, partial(self.commit, next_task)))
                         futures[fut] = next_task
                         rtn[idx] = fut
             return [rtn.get(i) for i in range(len(writes))]
@@ -157,11 +211,30 @@ class PregelRunner:
                 calls=[Call(func, input, retry=retry, callbacks=callbacks)],
             )
             assert fut is not None, "writer did not return a future for call"
-            return fut
+            # Return a fresh future chained on the original future
+            # This ensures waiters are notified after done callbacks are called
+            return _create_chained_future(fut, is_async=False)
 
         tasks = tuple(tasks)
         futures: dict[concurrent.futures.Future, Optional[PregelExecutableTask]] = {}
         done_futures: set[concurrent.futures.Future] = set()
+        # Event to coordinate done callbacks
+        done_callbacks_event = threading.Event()
+        pending_callbacks = 0
+        callbacks_lock = threading.Lock()
+        
+        def track_done_callback(original_callback, fut):
+            """Wrapper to track when done callbacks complete."""
+            nonlocal pending_callbacks
+            try:
+                original_callback(fut)
+            finally:
+                with callbacks_lock:
+                    nonlocal pending_callbacks
+                    pending_callbacks -= 1
+                    if pending_callbacks == 0:
+                        done_callbacks_event.set()
+        
         # give control back to the caller
         yield
         # fast path if single task with no timeout and no waiter
@@ -206,7 +279,9 @@ class PregelRunner:
                     },
                     __reraise_on_exit__=reraise,
                 )
-                fut.add_done_callback(partial(self.commit, t))
+                with callbacks_lock:
+                    pending_callbacks += 1
+                fut.add_done_callback(partial(track_done_callback, partial(self.commit, t)))
                 futures[fut] = t
         # execute tasks, and wait for one to fail or all to finish.
         # each task is independent from all other concurrent tasks
@@ -240,7 +315,9 @@ class PregelRunner:
         # wait for pending done callbacks
         # if a 2nd future finishes while `wait` is returning, it's possible
         # that done callbacks for the 2nd future aren't called until next tick
-        time.sleep(0)
+        # Use proper synchronization instead of sleep(0)
+        if pending_callbacks > 0:
+            done_callbacks_event.wait(timeout=1.0)  # Add reasonable timeout
         # panic on failure or timeout
         _panic_or_proceed(
             done_futures.union(f for f, t in futures.items() if t is not None),
@@ -331,7 +408,12 @@ class PregelRunner:
                                 __next_tick__=True,
                             ),
                         )
-                        fut.add_done_callback(partial(self.commit, next_task))
+                        async def increment_pending_writer():
+                            async with callbacks_lock:
+                                nonlocal pending_callbacks
+                                pending_callbacks += 1
+                        asyncio.create_task(increment_pending_writer())
+                        fut.add_done_callback(partial(track_done_callback_async, partial(self.commit, next_task)))
                         futures[fut] = next_task
                         rtn[idx] = fut
             return [rtn.get(i) for i in range(len(writes))]
@@ -351,16 +433,42 @@ class PregelRunner:
             )
             assert fut is not None, "writer did not return a future for call"
             if asyncio.iscoroutinefunction(func):
-                return fut
-            # adapted from asyncio.run_coroutine_threadsafe
-            sfut: concurrent.futures.Future = concurrent.futures.Future()
-            loop.call_soon_threadsafe(chain_future, fut, sfut)
-            return sfut
+                # Return a fresh future chained on the original future
+                # This ensures waiters are notified after done callbacks are called
+                return _create_chained_future(fut, is_async=True)
+            else:
+                # Disable incomplete support for calling sync tasks from async entrypoints
+                # This prevents timing issues between sync and async execution contexts
+                raise RuntimeError(
+                    "Calling synchronous functions from async entrypoints is not supported. "
+                    "Use async functions instead."
+                )
 
         loop = asyncio.get_event_loop()
         tasks = tuple(tasks)
         futures: dict[asyncio.Future, Optional[PregelExecutableTask]] = {}
         done_futures: set[asyncio.Future] = set()
+        # Event to coordinate done callbacks
+        done_callbacks_event = asyncio.Event()
+        pending_callbacks = 0
+        callbacks_lock = asyncio.Lock()
+        
+        def track_done_callback_async(original_callback, fut):
+            """Wrapper to track when done callbacks complete."""
+            nonlocal pending_callbacks
+            try:
+                original_callback(fut)
+            finally:
+                # Schedule the decrement on the event loop
+                async def decrement():
+                    async with callbacks_lock:
+                        nonlocal pending_callbacks
+                        pending_callbacks -= 1
+                        if pending_callbacks == 0:
+                            done_callbacks_event.set()
+                
+                loop.call_soon(asyncio.create_task, decrement())
+        
         # give control back to the caller
         yield
         # fast path if single task with no waiter and no timeout
@@ -412,7 +520,12 @@ class PregelRunner:
                         __reraise_on_exit__=reraise,
                     ),
                 )
-                fut.add_done_callback(partial(self.commit, t))
+                async def increment_pending():
+                    async with callbacks_lock:
+                        nonlocal pending_callbacks
+                        pending_callbacks += 1
+                asyncio.create_task(increment_pending())
+                fut.add_done_callback(partial(track_done_callback_async, partial(self.commit, t)))
                 futures[fut] = t
         # execute tasks, and wait for one to fail or all to finish.
         # each task is independent from all other concurrent tasks
@@ -446,7 +559,12 @@ class PregelRunner:
         # wait for pending done callbacks
         # if a 2nd future finishes while `wait` is returning, it's possible
         # that done callbacks for the 2nd future aren't called until next tick
-        await asyncio.sleep(0)
+        # Use proper synchronization instead of sleep(0)
+        if pending_callbacks > 0:
+            try:
+                await asyncio.wait_for(done_callbacks_event.wait(), timeout=1.0)
+            except asyncio.TimeoutError:
+                pass  # Continue if timeout - don't block indefinitely
         # cancel waiter task
         for fut in futures:
             fut.cancel()
